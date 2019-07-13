@@ -1,17 +1,28 @@
 package georgiou.thesis;
 
+import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 import com.google.android.gms.wearable.DataClient;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
+import com.opencsv.CSVWriter;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener{
 
@@ -19,9 +30,20 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     private float[] values = new float[3];
     private TextView coords;
+    private long timeStamp;
 
     BluetoothAdapter mBluetoothAdapter;
     String datapath = "/data_path";
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();
+    String fileName = "AnalysisData.csv";
+    String filePath = baseDir + File.separator + fileName;
+    File f = new File(filePath);
+    CSVWriter writer;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,7 +55,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Wearable.getDataClient(this).addListener(this);
-    }
+
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},0);
+        }
+
+        }
 
     @Override
     public void onResume(){
@@ -67,7 +94,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                    coords.setText("X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
+                    coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
             }
         });
     }
@@ -82,9 +109,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if (path.equals(datapath)) {
                     DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
+                    timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
                     if(values!=null) {
                         //Log.d(TAG, "X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
                         logthis();
+                        exportDataToCSV();
                     }
                     else{
                         Log.d(TAG, "onDataChanged: SHIT HAPPENS");
@@ -97,6 +126,37 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             } else {
                 Log.e(TAG, "Unknown data event Type = " + event.getType());
             }
+        }
+    }
+
+    public void exportDataToCSV(){
+
+        try{
+        if(f.exists()&&!f.isDirectory())
+        {
+
+            FileWriter mFileWriter = new FileWriter(filePath, true);
+            writer = new CSVWriter(mFileWriter);
+        }
+        else
+        {
+                writer = new CSVWriter(new FileWriter(filePath));
+        }
+
+        String[] val = new String[4];
+        val[0] = Float.toString(values[0]);
+        val[1] = Float.toString(values[1]);
+        val[2] = Float.toString(values[2]);
+        val[3] = Long.toString(timeStamp);
+
+        Log.d(TAG, baseDir+"\nonEXPORT:"+val[0]+" "+val[1]+" "+val[2]+" "+val[3]);
+
+        writer.writeNext(val);
+
+
+            writer.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }

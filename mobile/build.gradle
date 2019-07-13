@@ -24,4 +24,5 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha3'
     wearApp project(':wear')
     implementation 'com.google.android.gms:play-services-wearable:+'
+    implementation project(path: ':opencsv-4.6')
 }

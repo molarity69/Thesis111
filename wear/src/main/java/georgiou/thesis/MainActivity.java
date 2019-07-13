@@ -27,9 +27,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
 
     private SensorManager sensorManager;
     Sensor accelerometer;
-    private float[] senVal = new float[3];
+    //private float[] senVal = new float[3];
 
-    private volatile boolean stopThread = false;
+    //private volatile boolean stopThread = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -53,11 +53,11 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     @Override
     public void onSensorChanged(SensorEvent sensorEvent){
 
-        senVal[0] = sensorEvent.values[0];
-        senVal[1] = sensorEvent.values[1];
-        senVal[2] = sensorEvent.values[2];
+        //senVal[0] = sensorEvent.values[0];
+        //senVal[1] = sensorEvent.values[1];
+        //senVal[2] = sensorEvent.values[2];
 
-        sendData(senVal);
+        sendData(sensorEvent.values, sensorEvent.timestamp);
 
     }
 
@@ -124,11 +124,12 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             }
         });    }
 
-    private void sendData(float[] senVal){
+    private void sendData(float[] senVal, long time){
 
         PutDataMapRequest dataMap = PutDataMapRequest.create(datapath);
 
         dataMap.getDataMap().putFloatArray("SensorValues", senVal);
+        dataMap.getDataMap().putLong("ValueTimestamp", time);
         PutDataRequest request = dataMap.asPutDataRequest();
         request.setUrgent();
 
