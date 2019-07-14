@@ -57,7 +57,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         //senVal[1] = sensorEvent.values[1];
         //senVal[2] = sensorEvent.values[2];
 
-        sendData(sensorEvent.values, sensorEvent.timestamp);
+        sendData(sensorEvent.values, System.currentTimeMillis());
+        //sensorEvent.timestamp
 
     }
 
@@ -89,7 +90,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     @Override
     public void onResume() {
         //startThread();
-        sensorManager.registerListener(MainActivity.this, accelerometer, 300000);
+        sensorManager.registerListener(MainActivity.this, accelerometer, 200000);
         setAmbientEnabled();
         super.onResume();
     }

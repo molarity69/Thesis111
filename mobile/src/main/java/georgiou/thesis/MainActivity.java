@@ -30,7 +30,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     private float[] values = new float[3];
     private TextView coords;
+    private TextView packetView;
     private long timeStamp;
+    private long diff;
+    private long startTime;
+    private long startTimeAfterPause;
+    private int expectedCount = 0;
+    private int receivedCount = 0;
+    private boolean flag = false;
 
     BluetoothAdapter mBluetoothAdapter;
     String datapath = "/data_path";
@@ -49,9 +56,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.d(TAG, "OnCreate");
+        Log.d(TAG, "OnCreate--> StartTime: " + startTime);
 
         coords = (TextView) findViewById(R.id.coords);
+        packetView = (TextView) findViewById(R.id.packets);
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Wearable.getDataClient(this).addListener(this);
@@ -95,6 +103,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             @Override
             public void run() {
                     coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
+                    if(flag==true) {
+
+                        expectedCount = (int) ((timeStamp - startTime) / 300);
+                        Log.d(TAG, "expectedCount: " + expectedCount);
+                    }
+                    packetView.setText("Expected/Received: " + expectedCount + "/" + receivedCount);
             }
         });
     }
@@ -112,8 +126,16 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
                     if(values!=null) {
                         //Log.d(TAG, "X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
+                        diff = timeStamp - System.currentTimeMillis();
+                        if(flag == false) startTime = System.currentTimeMillis();
+                        flag = true;
+
+                        Log.d(TAG, "\nonDataChanged:"+"\nX: "+ values[0] + "\nY: " + values[1] +
+                                "\nZ: " + values[2] + "\n WatchStamp: " + timeStamp +
+                                "\nMobileStamp: " + System.currentTimeMillis() + "\nDiff: " + diff + " ns\n");
                         logthis();
-                        exportDataToCSV();
+                        receivedCount++;
+                        //exportDataToCSV();
                     }
                     else{
                         Log.d(TAG, "onDataChanged: SHIT HAPPENS");
@@ -127,6 +149,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 Log.e(TAG, "Unknown data event Type = " + event.getType());
             }
         }
+        Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
     }
 
     public void exportDataToCSV(){
