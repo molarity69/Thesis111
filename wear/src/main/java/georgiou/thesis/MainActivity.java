@@ -145,6 +145,9 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                             logthis();
                             i++;
                         }
+                        else if(i > 10){
+                            i = 1;
+                        }
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {

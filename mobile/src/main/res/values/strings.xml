@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Thesis</string>
     <string name="coordinates">Waiting...</string>
-    <string name="packetsRate">Expected/Received: 0/0</string>
+    <string name="packetsRate">Received/Recorded: 0/0</string>
+    <string name="newGest">New Gesture Start/Stop</string>
+    <string name="timeElapsed">Total Recording Time:</string>
 </resources>

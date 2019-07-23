@@ -5,7 +5,11 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.SystemClock;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.Chronometer;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -23,21 +27,27 @@ import com.opencsv.CSVWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.Time;
 
-public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener{
+public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
     private final static String TAG = "MobileMainActivity";
 
     private float[] values = new float[3];
     private TextView coords;
     private TextView packetView;
+    private Button newGesture;
+    private Chronometer chrono;
     private long timeStamp;
-    private long diff;
-    private long startTime;
-    private long startTimeAfterPause;
-    private int expectedCount = 0;
-    private int receivedCount = 0;
-    private boolean flag = false;
+    //private long diff;
+    //private long startTime;
+    //private long startTimeAfterPause;
+    private int recordedCount = 0;
+    private int receivedCount = 1;
+    //private boolean flag = false;
+    private volatile boolean start = false;
+    private long pauseOffset;
+    private int i = 0;
 
     BluetoothAdapter mBluetoothAdapter;
     String datapath = "/data_path";
@@ -56,10 +66,16 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.d(TAG, "OnCreate--> StartTime: " + startTime);
+        //Log.d(TAG, "OnCreate--> StartTime: " + startTime);
 
         coords = (TextView) findViewById(R.id.coords);
         packetView = (TextView) findViewById(R.id.packets);
+        newGesture = (Button) findViewById(R.id.buttonZeroValue);
+        chrono = (Chronometer) findViewById(R.id.timer);
+        chrono.setFormat("Total Recording Time - %s");
+
+        newGesture.setOnClickListener(this);
+        newGesture.setEnabled(false);
 
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Wearable.getDataClient(this).addListener(this);
@@ -69,6 +85,23 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         }
+
+    @Override
+    public void onClick(View v){
+        if(!start){
+            chrono.setBase(SystemClock.elapsedRealtime() - pauseOffset);
+            chrono.start();
+            exportDataToCSV(new float[] {30.00f, 30.00f, 30.00f, 30.00f}, 30);
+            start = true;
+        }
+        else{
+            chrono.stop();
+            pauseOffset = SystemClock.elapsedRealtime() - chrono.getBase();
+            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}, -30);
+            start = false;
+            i++;
+        }
+    }
 
     @Override
     public void onResume(){
@@ -102,13 +135,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                    coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
-                    if(flag==true) {
-
-                        expectedCount = (int) ((timeStamp - startTime) / 300);
-                        Log.d(TAG, "expectedCount: " + expectedCount);
-                    }
-                    packetView.setText("Expected/Received: " + expectedCount + "/" + receivedCount);
+                    //coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
+                        coords.setText("Recorded Gestures: " + i);
+                        packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount);
             }
         });
     }
@@ -124,21 +153,30 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
                     timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
-                    if(values!=null) {
+                    if(values!=null && start) {
                         //Log.d(TAG, "X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
-                        diff = timeStamp - System.currentTimeMillis();
-                        if(flag == false) startTime = System.currentTimeMillis();
-                        flag = true;
+                        //diff = timeStamp - System.currentTimeMillis();
+                        //if(!flag) startTime = System.currentTimeMillis();
+                        //flag = true;
 
+                        /*
                         Log.d(TAG, "\nonDataChanged:"+"\nX: "+ values[0] + "\nY: " + values[1] +
                                 "\nZ: " + values[2] + "\n WatchStamp: " + timeStamp +
                                 "\nMobileStamp: " + System.currentTimeMillis() + "\nDiff: " + diff + " ns\n");
+                        */
+
+
+
                         logthis();
-                        receivedCount++;
-                        //exportDataToCSV();
+                        exportDataToCSV(values, timeStamp);
                     }
                     else{
-                        Log.d(TAG, "onDataChanged: SHIT HAPPENS");
+                        if(!start) {
+                            //Log.d(TAG, "onDataChanged: RECEIVING BUT NOT RECORDING MATE --> Received Count:" + receivedCount);
+                            logthis();
+                            if(receivedCount > 2) newGesture.setEnabled(true);
+                        }
+                        else Log.d(TAG, "onDataChanged: SHIT HAPPENS");
                     }
                 } else {
                     Log.e(TAG, "Unrecognized path: " + path);
@@ -149,10 +187,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 Log.e(TAG, "Unknown data event Type = " + event.getType());
             }
         }
-        Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
+        receivedCount++;
+        //newGesture.setEnabled(false);
+        //Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
     }
 
-    public void exportDataToCSV(){
+    public void exportDataToCSV(float[] accData, long stamp){
 
         try{
         if(f.exists()&&!f.isDirectory())
@@ -167,15 +207,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         String[] val = new String[4];
-        val[0] = Float.toString(values[0]);
-        val[1] = Float.toString(values[1]);
-        val[2] = Float.toString(values[2]);
-        val[3] = Long.toString(timeStamp);
+        val[0] = Float.toString(accData[0]);
+        val[1] = Float.toString(accData[1]);
+        val[2] = Float.toString(accData[2]);
+        val[3] = Long.toString(stamp);
 
-        Log.d(TAG, baseDir+"\nonEXPORT:"+val[0]+" "+val[1]+" "+val[2]+" "+val[3]);
+        recordedCount++;
+        //Log.d(TAG, baseDir+"\nonEXPORT: "+val[0]+" "+val[1]+" "+val[2]+" "+val[3] + " --> Recorded Count: " + recordedCount);
 
         writer.writeNext(val);
 
+        //writer.writeNext(new String[] {"0","0","0","0"});
 
             writer.close();
         } catch (IOException e) {
