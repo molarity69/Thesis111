@@ -39,8 +39,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         mTextView = (TextView) findViewById(R.id.text);
 
         sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_LINEAR_ACCELERATION);
-        sensorManager.registerListener(MainActivity.this, accelerometer, 300000);
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+        sensorManager.registerListener(MainActivity.this, accelerometer, 200000);
 
         //startThread();
         // Enables Always-on
