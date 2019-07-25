@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Chronometer;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -47,7 +48,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     //private boolean flag = false;
     private volatile boolean start = false;
     private long pauseOffset;
-    private int i = 0;
+    private int gesturesComplete = 0;
 
     BluetoothAdapter mBluetoothAdapter;
     String datapath = "/data_path";
@@ -95,11 +96,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             start = true;
         }
         else{
-            chrono.stop();
-            pauseOffset = SystemClock.elapsedRealtime() - chrono.getBase();
-            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}, -30);
-            start = false;
-            i++;
+            Toast.makeText(this, "Already Running!", Toast.LENGTH_LONG);
         }
     }
 
@@ -136,7 +133,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             @Override
             public void run() {
                     //coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
-                        coords.setText("Recorded Gestures: " + i);
+                        coords.setText("Recorded Gestures: " + gesturesComplete);
                         packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount);
             }
         });
@@ -164,17 +161,23 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                                 "\nZ: " + values[2] + "\n WatchStamp: " + timeStamp +
                                 "\nMobileStamp: " + System.currentTimeMillis() + "\nDiff: " + diff + " ns\n");
                         */
-
-
-
-                        logthis();
-                        exportDataToCSV(values, timeStamp);
+                        if((recordedCount - gesturesComplete) % 31 == 0){
+                            chrono.stop();
+                            pauseOffset = SystemClock.elapsedRealtime() - chrono.getBase();
+                            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}, -30);
+                            start = false;
+                            gesturesComplete++;
+                        }
+                        else{
+                            logthis();
+                            exportDataToCSV(values, timeStamp);
+                        }
                     }
                     else{
                         if(!start) {
                             //Log.d(TAG, "onDataChanged: RECEIVING BUT NOT RECORDING MATE --> Received Count:" + receivedCount);
                             logthis();
-                            if(receivedCount > 2) newGesture.setEnabled(true);
+                            if(receivedCount > 200) newGesture.setEnabled(true);
                         }
                         else Log.d(TAG, "onDataChanged: SHIT HAPPENS");
                     }
