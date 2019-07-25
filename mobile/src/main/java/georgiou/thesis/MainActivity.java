@@ -92,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         if(!start){
             chrono.setBase(SystemClock.elapsedRealtime() - pauseOffset);
             chrono.start();
-            exportDataToCSV(new float[] {30.00f, 30.00f, 30.00f, 30.00f}, 30);
+            exportDataToCSV(new float[] {30.00f, 30.00f, 30.00f, 30.00f}/*, 30*/);
             start = true;
         }
         else{
@@ -149,7 +149,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if (path.equals(datapath)) {
                     DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
-                    timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
+                    //timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
                     if(values!=null && start) {
                         //Log.d(TAG, "X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
                         //diff = timeStamp - System.currentTimeMillis();
@@ -164,13 +164,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         if((recordedCount - gesturesComplete) % 31 == 0){
                             chrono.stop();
                             pauseOffset = SystemClock.elapsedRealtime() - chrono.getBase();
-                            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}, -30);
+                            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}/*, -30*/);
                             start = false;
                             gesturesComplete++;
                         }
                         else{
                             logthis();
-                            exportDataToCSV(values, timeStamp);
+                            exportDataToCSV(values/*, timeStamp*/);
                         }
                     }
                     else{
@@ -195,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         //Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
     }
 
-    public void exportDataToCSV(float[] accData, long stamp){
+    public void exportDataToCSV(float[] accData/*, long stamp*/){
 
         try{
         if(f.exists()&&!f.isDirectory())
@@ -213,7 +213,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         val[0] = Float.toString(accData[0]);
         val[1] = Float.toString(accData[1]);
         val[2] = Float.toString(accData[2]);
-        val[3] = Long.toString(stamp);
+        //val[3] = Long.toString(stamp);
 
         recordedCount++;
         //Log.d(TAG, baseDir+"\nonEXPORT: "+val[0]+" "+val[1]+" "+val[2]+" "+val[3] + " --> Recorded Count: " + recordedCount);

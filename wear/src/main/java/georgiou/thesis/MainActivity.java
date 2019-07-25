@@ -23,7 +23,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private TextView mTextView;
     public String status;
     String datapath = "/data_path";
-    int i = 0;
+    //int i = 0;
 
     private SensorManager sensorManager;
     Sensor accelerometer;
@@ -57,7 +57,7 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         //senVal[1] = sensorEvent.values[1];
         //senVal[2] = sensorEvent.values[2];
 
-        sendData(sensorEvent.values, System.currentTimeMillis());
+        sendData(sensorEvent.values /*, System.currentTimeMillis()*/ );
         //sensorEvent.timestamp
 
     }
@@ -125,12 +125,12 @@ public class MainActivity extends WearableActivity implements SensorEventListene
             }
         });    }
 
-    private void sendData(float[] senVal, long time){
+    private void sendData(float[] senVal/*, long time*/){
 
         PutDataMapRequest dataMap = PutDataMapRequest.create(datapath);
 
         dataMap.getDataMap().putFloatArray("SensorValues", senVal);
-        dataMap.getDataMap().putLong("ValueTimestamp", time);
+        //dataMap.getDataMap().putLong("ValueTimestamp", time);
         PutDataRequest request = dataMap.asPutDataRequest();
         request.setUrgent();
 
@@ -140,24 +140,24 @@ public class MainActivity extends WearableActivity implements SensorEventListene
                 .addOnSuccessListener(new OnSuccessListener<DataItem>() {
                     @Override
                     public void onSuccess(DataItem dataItem) {
-                        if(i == 0){
+                        //if(i == 0){
                             status = "Success";
                             logthis();
-                            i++;
-                        }
-                        else if(i > 10){
-                            i = 1;
-                        }
+                       //     i++;
+                       // }
+                       // else if(i > 10){
+                       //     i = 1;
+                       // }
                     }
                 })
                 .addOnFailureListener(new OnFailureListener() {
                     @Override
                     public void onFailure(Exception e) {
-                        if(i > 0) {
+                        //if(i > 0) {
                             status = "Failure";
                             logthis();
-                            i = 0;
-                        }
+                       //     i = 0;
+                       // }
                     }
                 })
         ;
