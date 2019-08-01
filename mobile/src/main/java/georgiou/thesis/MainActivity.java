@@ -28,7 +28,9 @@ import com.opencsv.CSVWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.sql.Time;
+import java.util.ArrayList;
+//import java.util.Arrays;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
@@ -63,6 +65,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    List<Float> gestureValuesBufferX = new ArrayList<>();
+    List<Float> gestureValuesBufferY = new ArrayList<>();
+    List<Float> gestureValuesBufferZ = new ArrayList<>();
+    List<Float> gestureGeneralBuffer = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -96,7 +103,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             start = true;
         }
         else{
-            Toast.makeText(this, "Already Running!", Toast.LENGTH_LONG);
+            Toast.makeText(this, "Already Running!", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -167,9 +174,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                             exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f, -30.00f}/*, -30*/);
                             start = false;
                             gesturesComplete++;
+
                         }
                         else{
                             logthis();
+                            dataBuffer();
                             exportDataToCSV(values/*, timeStamp*/);
                         }
                     }
@@ -177,7 +186,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         if(!start) {
                             //Log.d(TAG, "onDataChanged: RECEIVING BUT NOT RECORDING MATE --> Received Count:" + receivedCount);
                             logthis();
-                            if(receivedCount > 200) newGesture.setEnabled(true);
+                            newGesture.setEnabled(true);
+                            //if(receivedCount > 200) newGesture.setEnabled(true);
                         }
                         else Log.d(TAG, "onDataChanged: SHIT HAPPENS");
                     }
@@ -193,6 +203,35 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         receivedCount++;
         //newGesture.setEnabled(false);
         //Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
+    }
+
+    public void dataBuffer(){
+
+        //Log.d(TAG, "\ndataBuffer: SIZE:" + gestureValuesBuffer.size());
+
+        if(gestureValuesBufferX.size() == 30 && gestureValuesBufferY.size() == 30 && gestureValuesBufferZ.size() == 30) {
+
+            Log.d(TAG, "\ndataBuffer: GENERAL SIZE BEFORE CLEAR:" + gestureGeneralBuffer.size());
+
+            if(gestureGeneralBuffer.size() >= 180){ gestureGeneralBuffer.clear(); Log.d(TAG, "\ndataBuffer: SIZE AFTER CLEAR:" + gestureGeneralBuffer.size()); }
+
+                gestureGeneralBuffer.addAll(0, gestureValuesBufferX);
+                gestureGeneralBuffer.addAll(30, gestureValuesBufferX);
+                gestureGeneralBuffer.addAll(60, gestureValuesBufferX);
+
+            Log.d(TAG, "\ndataBuffer: SIZEs BEFORE CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
+
+            gestureValuesBufferX.clear();
+            gestureValuesBufferY.clear();
+            gestureValuesBufferZ.clear();
+
+            Log.d(TAG, "\ndataBuffer: SIZEs AFTER CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
+        }
+
+
+        gestureValuesBufferX.add(values[0]);
+        gestureValuesBufferY.add(values[1]);
+        gestureValuesBufferZ.add(values[2]);
     }
 
     public void exportDataToCSV(float[] accData/*, long stamp*/){
