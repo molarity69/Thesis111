@@ -1,7 +1,15 @@
 <resources>
     <string name="app_name">Thesis</string>
-    <string name="coordinates">Waiting...</string>
+    <string name="coordinates">Waiting for Input</string>
     <string name="packetsRate">Received/Recorded: 0/0</string>
     <string name="newGest">New Gesture Start/Stop</string>
     <string name="timeElapsed">Total Recording Time:</string>
+    <string name="select_recogntion_algorithm">Select Recogntion Algorithm</string>
+    <string name="fft">FFT</string>
+    <string name="_3">$3</string>
+    <string name="sax">SAX</string>
+    <string name="current_algorithm_none">Current Algorithm: None</string>
+    <string name="current_algorithm_d3">Current Algorithm: $3</string>
+    <string name="current_algorithm_fft">Current Algorithm: FFT</string>
+    <string name="current_algorithm_sax">Current Algorithm: SAX</string>
 </resources>
