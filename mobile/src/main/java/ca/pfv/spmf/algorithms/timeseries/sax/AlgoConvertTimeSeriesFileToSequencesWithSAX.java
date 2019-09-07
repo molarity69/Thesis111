@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
-import ca.pfv.spmf.tools.MemoryLogger;
 
 /**
  * This class reads a time series file and convert it to a sequence of symbols using the SAX algorithm.
@@ -49,7 +48,7 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 	BufferedWriter writer = null;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = false;
+	boolean DEBUG_MODE = true;
 	
 	/** The number of time series in the last file that was read */
 	int timeSeriesCount = 0;
@@ -72,9 +71,7 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 	 * @throws IOException exception if error while writing the file
 	 */
 	public void runAlgorithm(List<TimeSeries> multipleTimeSeries, String output, int numberOfSegments, int numberOfSymbols, boolean deactivatePAA) throws IOException {
-		
-		// reset memory logger
-		MemoryLogger.getInstance().reset();
+
 		
 		// record the start time of the algorithm
 		startTimestamp = System.currentTimeMillis();
@@ -125,9 +122,7 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 		
 		// remember the number of time series
 		timeSeriesCount = multipleTimeSeries.size();
-				
-		// check the memory usage again and close the file.
-		MemoryLogger.getInstance().checkMemory();
+
 		// close output file
 		writer.close();
 		// record end time
@@ -180,7 +175,6 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 		System.out.println("======= CONVERT TIME SERIES TO SEQUENCES WITH SAX v2.05- STATS =======");
 		System.out.println(" Number of time series processed: " + timeSeriesCount);
 		System.out.println(" Total time ~ " + (endTimestamp - startTimestamp) + " ms");
-		System.out.println(" Max Memory ~ " + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("=====================================================================");
 	}
 }

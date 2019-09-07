@@ -27,7 +27,6 @@ import java.util.List;
 
 import ca.pfv.spmf.algorithms.ArraysAlgos;
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
-import ca.pfv.spmf.tools.MemoryLogger;
 
 /**
  * This class reads a time series file in memory
@@ -45,7 +44,7 @@ public class AlgoTimeSeriesReader {
 	long endTimestamp = 0;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = false;
+	boolean DEBUG_MODE = true;
 	
 	/** The number of time series in the last file that was read */
 	int timeSeriesCount = 0;
@@ -64,9 +63,7 @@ public class AlgoTimeSeriesReader {
 	 * @throws IOException exception if error while writing the file
 	 */
 	public List<TimeSeries> runAlgorithm(String input, String separator) throws IOException {
-		
-		// reset memory logger
-		MemoryLogger.getInstance().reset();
+
 		
 		// record the start time of the algorithm
 		startTimestamp = System.currentTimeMillis();
@@ -131,9 +128,7 @@ public class AlgoTimeSeriesReader {
 		
 		// closed input file
 		myInput.close();
-				
-		// check the memory usage again and close the file.
-		MemoryLogger.getInstance().checkMemory();
+
 		// record end time
 		endTimestamp = System.currentTimeMillis();
 		
@@ -148,7 +143,6 @@ public class AlgoTimeSeriesReader {
 		System.out.println("======= READ TIME SERIES TO MEMORY v2.07- STATS =======");
 		System.out.println(" Number of time series processed: " + timeSeriesCount);
 		System.out.println(" Total time ~ " + (endTimestamp - startTimestamp) + " ms");
-		System.out.println(" Max Memory ~ " + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("=====================================================================");
 	}
 }

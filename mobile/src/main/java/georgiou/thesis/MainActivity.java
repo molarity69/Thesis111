@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static georgiou.thesis.FFT.fft;
+import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
@@ -72,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT ACCELEROMETER DATA
 
-    String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();
+    public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();
     String fileName = "AnalysisData.csv";
     String filePath = baseDir + File.separator + fileName;
     File f = new File(filePath);
@@ -139,9 +140,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},0);
         }
-
+        String[] args = new String[0];
         initializeFromCSV();
+
+        try {
+            MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(args);
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+    }
 
     @Override
     public void onClick(View v) {

@@ -18,12 +18,13 @@ package ca.pfv.spmf.algorithms.timeseries.paa;
 */
 
 
+import android.util.Log;
+
 import java.io.IOException;
 import java.util.Arrays;
 
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
 import ca.pfv.spmf.algorithms.timeseries.sax.AlgoSAX;
-import ca.pfv.spmf.tools.MemoryLogger;
 
 /**
  * An implementation of the algorithm to generate the Piecewise Aggregate Approximation of a time series
@@ -46,7 +47,7 @@ public class AlgoPiecewiseAggregateApproximation {
 	long endTimestamp = 0;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = false;
+	boolean DEBUG_MODE = true;
 		
 	/**
 	 * Default constructor
@@ -64,6 +65,7 @@ public class AlgoPiecewiseAggregateApproximation {
 	public TimeSeries runAlgorithm(TimeSeries timeSeries, int numberOfSegments) throws IOException {
 		// check some error for parameters
 		if(timeSeries.data.length < numberOfSegments){
+            Log.d("THIS IS THE PROBLEM BITCH : \t", timeSeries.data.length+ " < " + numberOfSegments);
 			throw new IllegalArgumentException(" The number of segments should be less than or equal to the number of data points in the time series");
 		}
 		
@@ -72,8 +74,6 @@ public class AlgoPiecewiseAggregateApproximation {
 			throw new IllegalArgumentException(" This implementation only support a number of segments > 1");
 		}
 
-		// reset memory logger
-		MemoryLogger.getInstance().reset();
 		
 		// record the start time of the algorithm
 		startTimestamp = System.currentTimeMillis();
@@ -91,9 +91,7 @@ public class AlgoPiecewiseAggregateApproximation {
 		TimeSeries paaSeries = new TimeSeries(piecewiseTransformedData, 
 				timeSeries.getName() + "_PAA");
 		
-		
-		// check the memory usage again and close the file.
-		MemoryLogger.getInstance().checkMemory();
+
 		// record end time
 		endTimestamp = System.currentTimeMillis();
 
@@ -200,7 +198,6 @@ public class AlgoPiecewiseAggregateApproximation {
 	public void printStats() {
 		System.out.println("=============  Transform To PAA  ALGORITHM v2.05- STATS =============");
 		System.out.println(" Total time ~ " + (endTimestamp - startTimestamp) + " ms");
-		System.out.println(" Max Memory ~ " + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("===================================================");
 	}
 

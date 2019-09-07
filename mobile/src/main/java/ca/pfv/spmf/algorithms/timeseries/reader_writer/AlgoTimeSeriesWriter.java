@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.List;
 
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
-import ca.pfv.spmf.tools.MemoryLogger;
 
 /**
  * This class write a list of time series to a file
@@ -63,9 +62,7 @@ public class AlgoTimeSeriesWriter {
 	 * @throws IOException exception if error while writing the file
 	 */
 	public void runAlgorithm(String output, List<TimeSeries> multipleTimeSeries, String separator) throws IOException {
-		
-		// reset memory logger
-		MemoryLogger.getInstance().reset();
+
 		
 		// record the start time of the algorithm
 		startTimestamp = System.currentTimeMillis();
@@ -104,9 +101,7 @@ public class AlgoTimeSeriesWriter {
 		
 		// remember the number of time series
 		timeSeriesCount = multipleTimeSeries.size();
-		
-		// check the memory usage again and close the file.
-		MemoryLogger.getInstance().checkMemory();
+
 		// record end time
 		endTimestamp = System.currentTimeMillis();
 		
@@ -119,7 +114,6 @@ public class AlgoTimeSeriesWriter {
 		System.out.println("======= WRITE TIME SERIES TO FILE v2.06 - STATS =======");
 		System.out.println(" Number of time series processed: " + timeSeriesCount);
 		System.out.println(" Total time ~ " + (endTimestamp - startTimestamp) + " ms");
-		System.out.println(" Max Memory ~ " + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("=====================================================================");
 	}
 }

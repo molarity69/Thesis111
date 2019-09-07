@@ -1,5 +1,6 @@
 package ca.pfv.spmf.algorithms.timeseries.sax;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URL;
@@ -7,6 +8,7 @@ import java.util.List;
 
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
 import ca.pfv.spmf.algorithms.timeseries.reader_writer.AlgoTimeSeriesReader;
+import georgiou.thesis.MainActivity;
 
 /**
  * Example of how to use SAX algorithm for converting a time series from the source code.
@@ -17,7 +19,7 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 	public static void main(String [] arg) throws IOException{
 		
 		// the input file
-		String input = fileToPath("contextSAX.txt");  
+		String input = MainActivity.baseDir + File.separator + "contextSAX.txt";
 
 		// Parameters of the algorithm
 		String separator = ",";
@@ -28,10 +30,10 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 		reader.printStats();
 		
 		// the output file
-		String output = ".//output.txt";  
+		String output = MainActivity.baseDir + File.separator + "output1.txt";//".//output.txt";
 
 		// Parameters of the algorithm
-		int numberOfSegments = 8;
+		int numberOfSegments = 4;
 		int numberOfSymbols = 4;
 		
 		// Set this variable to true to not apply PAA before SAX

@@ -24,7 +24,6 @@ import java.util.List;
 
 import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
 import ca.pfv.spmf.algorithms.timeseries.paa.AlgoPiecewiseAggregateApproximation;
-import ca.pfv.spmf.tools.MemoryLogger;
 
 /**
  * An implementation of the SAX algorithm to convert a time series to a sequence of symbols.<br/><br/>
@@ -46,7 +45,7 @@ public class AlgoSAX {
 	long endTimestamp = 0;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = false;
+	boolean DEBUG_MODE = true;
 	
 	/** The symbols created for the last converted time series */
 	SAXSymbol[] symbols;
@@ -92,9 +91,7 @@ public class AlgoSAX {
 		if(numberOfSymbols < MIN_NUMBER_OF_SYMBOLS || numberOfSymbols > MAX_NUMBER_OF_SYMBOLS){
 			throw new IllegalArgumentException(" This implementation of SAX only support a number of symbols between"+ MIN_NUMBER_OF_SYMBOLS + " to " + MAX_NUMBER_OF_SYMBOLS);
 		}
-		
-		// reset memory logger
-		MemoryLogger.getInstance().reset();
+
 		
 		// record the start time of the algorithm
 		startTimestamp = System.currentTimeMillis();
@@ -164,9 +161,7 @@ public class AlgoSAX {
 				
 		// There is only one time series
 		timeSeriesCount = 1;
-		
-		// check the memory usage again and close the file.
-		MemoryLogger.getInstance().checkMemory();
+
 		// record end time
 		endTimestamp = System.currentTimeMillis();
 
@@ -194,9 +189,7 @@ public class AlgoSAX {
 			if(numberOfSymbols < 2 || numberOfSymbols >20){
 				throw new IllegalArgumentException(" This implementation of SAX only support a number of symbols between 2 to 20");
 			}
-			
-			// reset memory logger
-			MemoryLogger.getInstance().reset();
+
 			
 			// record the start time of the algorithm
 			startTimestamp = System.currentTimeMillis();
@@ -286,9 +279,7 @@ public class AlgoSAX {
 				saxSequences[i] = transformPAAtoSAXRepresentation(piecewiseTransformedData.data, symbols);
 
 			}
-			
-			// check the memory usage again and close the file.
-			MemoryLogger.getInstance().checkMemory();
+
 			// record end time
 			endTimestamp = System.currentTimeMillis();
 
@@ -472,7 +463,6 @@ Double.POSITIVE_INFINITY};
 		System.out.println("=============  SAX  ALGORITHM v2.10 - STATS =============");
 		System.out.println(" Number of time series processed: " + timeSeriesCount);
 		System.out.println(" Total time ~ " + (endTimestamp - startTimestamp) + " ms");
-		System.out.println(" Max Memory ~ " + MemoryLogger.getInstance().getMaxMemory() + " MB");
 		System.out.println("===================================================");
 	}
 
