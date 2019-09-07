@@ -36,6 +36,7 @@ import java.util.List;
 
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
+import edu.berkeley.compbio.jlibsvm.kernel.GaussianRBFKernel;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 

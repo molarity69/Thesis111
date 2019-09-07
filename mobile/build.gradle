@@ -20,10 +20,15 @@ android {
         sourceCompatibility = '1.8'
         targetCompatibility = '1.8'
     }
+
+    packagingOptions {
+        exclude 'log4j.properties'
+    }
+
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'androidx.appcompat:appcompat:1.0.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.0.0-alpha3'
     wearApp project(':wear')
@@ -31,4 +36,8 @@ dependencies {
     implementation project(path: ':opencsv-4.6')
     implementation 'org.apache.commons:commons-lang3:3.0'
     implementation 'com.android.support:design'
+    implementation files('libs/jlibsvm-0.911.jar')
+    implementation files('libs/jlibsvm-0.911-javadoc.jar')
+    implementation files('libs/jlibsvm-0.911-sources.jar')
+    implementation files('libs/jlibsvm-0.911-tests.jar')
 }
