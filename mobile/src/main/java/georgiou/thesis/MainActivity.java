@@ -154,12 +154,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         initializeFromCSV(); //method for loading raw data from csv for transforming them into a new data set (used during development)
-        writeSAXtoTXT();
-        try{
-        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
-        }catch (IOException e){
-            e.printStackTrace();
-        }
+        datasetFFT();
+        //writeSAXtoTXT();
+        //try{
+        //MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
+        //}catch (IOException e){
+        //    e.printStackTrace();
+        //}
 
     }
 
@@ -507,12 +508,29 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
         else {
             String[] val = new String[64];
+            char axis = ' ';
+            int valIter = 1;
             for(int j = 0; j< fftDataset.length; j++){
+//                if(j == 0) {
+//
+//                    for(int line = 0; line < fftDataset[0].length; line++){
+//                        if(line<=30) {axis = 'X';}
+//                        else if(line>30 || line<=60) {axis = 'Y';}
+//                        else if(line>60 || line<=90) {axis = 'Z';}
+//
+//                        if(valIter == 31) {valIter = 1;}
+//
+//                        val[line] = ""+axis+(valIter);
+//                        valIter++;
+//                    }
+//                    writer.writeNext(val, false);
+//                }
                 for(int k = 0; k<fftDataset[0].length; k++){
+
                     if(accData.length == 1) val[k] = fftDataset[j][k].toStringZ();
                     else val[k] = Float.toString((float)(fftDataset[j][k].abs()/64.0));
                 }
-                writer.writeNext(val);
+                writer.writeNext(val,false);
             }
         }
             writer.close();
