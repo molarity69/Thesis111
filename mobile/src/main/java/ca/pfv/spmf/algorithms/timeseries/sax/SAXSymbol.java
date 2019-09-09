@@ -47,4 +47,8 @@ public class SAXSymbol {
 	public String toString() {
 		return "(" + symbol + " [" + lowerBound + "," + upperBound + "])";
 	}
+
+	public String toStringCustom() {
+		return symbol + ",";
+	}
 }

@@ -5,11 +5,9 @@ import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.SystemClock;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Chronometer;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,24 +23,27 @@ import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+import java.io.BufferedWriter;
 
 import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-//import java.util.Arrays;
 import java.util.List;
 
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
+import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
 import edu.berkeley.compbio.jlibsvm.kernel.GaussianRBFKernel;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
-    private final static String TAG = "MobileMainActivity";
+    private final static String TAG = "MobileMainActivity"; //Debug TAG
 
-    private float[] values = new float[3];
+    private float[] values = new float[3]; //Array containing incoming X,Y,Z data from watch
+
+    ///////////////////////////////////////////////////////////////////////////////////////////// LAYOUT COMPONENTS
     private TextView coords;
     private TextView packetView;
     private TextView currentAlgo;
@@ -50,66 +51,74 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private Button d3Button;
     private Button fftButton;
     private Button saxButton;
-    //private Chronometer chrono;
-    //private long timeStamp;
-    //private long diff;
-    //private long startTime;
-    //private long startTimeAfterPause;
-    private int recordedCount = 0;
-    private int receivedCount = 1;
-    //private boolean flag = false;
-    private volatile boolean start = false;
-    //private long pauseOffset;
-    private int gesturesComplete = 0;
-    private int r;
+    private Button trainButton;
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    BluetoothAdapter mBluetoothAdapter;
-    String datapath = "/data_path";
+    private int recordedCount = 0;  //checking recorded data
+    private int receivedCount = 1;  //checking received data
+    private volatile boolean start = false; //checking if recording has started
+    private int gesturesComplete = 0;   //checking total recorded gestures
+    private String chosenAlgorithm = null;  //checking which button is pressed
 
-    float[][] dataSet = new float[120][90];
-    Complex[][] fftDataset = new Complex[120][64];
+    public BluetoothAdapter mBluetoothAdapter; //bluetooth initializer
+    public String datapath = "/data_path"; //path for bluetooth communication
 
-    int fftCell = 0;
-    Complex[] row = new Complex[64];
+    private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
+    private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
 
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT ACCELEROMETER DATA
 
-    public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();
+    private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
+    private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
+
+    public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
+
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT RAW ACCELEROMETER DATA TO CSV
+
     String fileName = "AnalysisData.csv";
     String filePath = baseDir + File.separator + fileName;
     File f = new File(filePath);
-    CSVWriter writer;
+    CSVWriter writer;   //registering CSVWriter
 
-    /////////////////////////////////////////////////////////////////////////////////////////////ACC DATA END
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT FFT DATA IN STRING
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT FFT DATA IN STRING TO CSV
 
     String fileNameFFT = "FFTAnalysisData.csv";
     String filePathFFT = baseDir + File.separator + fileNameFFT;
     File fFFT = new File(filePathFFT);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////FFT DATA STRING END
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT FFT DATA IN FLOAT
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT FFT DATA IN FLOAT TO CSV
 
     String fileNameFFTfloat = "FFTAnalysisDataFloat.csv";
     String filePathFFTfloat = baseDir + File.separator + fileNameFFTfloat;
     File fFFTfloat = new File(filePathFFTfloat);
 
-    /////////////////////////////////////////////////////////////////////////////////////////////FFT DATA FLOAT END
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////////IMPORT TRANSPOSED DATA
+    /////////////////////////////////////////////////////////////////////////////////////////////IMPORT TRANSPOSED DATA FROM CSV
 
     String fileNameRead = "TransposedAnalysisData.csv";
     String filePathRead = baseDir + File.separator + fileNameRead;
-    //File fRead = new File(filePathRead);
-    CSVReader reader;
+    CSVReader reader;   //registering CSVReader
 
-    /////////////////////////////////////////////////////////////////////////////////////////////IMPORT END
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT BUFFER DATA TO TXT
+
+    String fileNameSAX = "saxInput.txt";
+    String filePathSAX = baseDir + File.separator + fileNameSAX;
+    File fSAX = new File(filePathSAX);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    ///////////////////////////////////////////////////////////////////////////////////////////// BUFFER ARRAYLISTS FOR INCOMING WATCH DATA
     List<Float> gestureValuesBufferX = new ArrayList<>();
     List<Float> gestureValuesBufferY = new ArrayList<>();
     List<Float> gestureValuesBufferZ = new ArrayList<>();
     List<Float> gestureGeneralBuffer = new ArrayList<>();
+    /////////////////////////////////////////////////////////////////////////////////////////////
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -117,6 +126,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         setContentView(R.layout.activity_main);
         Log.d(TAG, "OnCreate ");
 
+        ////////////////////////////////////////////////////////////////////////////////////LAYOUT COMPONENTS
         coords = (TextView) findViewById(R.id.coords);
         packetView = (TextView) findViewById(R.id.packets);
         currentAlgo = (TextView) findViewById(R.id.currentAlgo);
@@ -124,62 +134,106 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         d3Button = (Button) findViewById(R.id.d3);
         fftButton = (Button) findViewById(R.id.fft);
         saxButton = (Button) findViewById(R.id.sax);
-        //chrono = (Chronometer) findViewById(R.id.timer);
-        //chrono.setFormat("Total Recording Time - %s");
+        trainButton = (Button) findViewById(R.id.trainButton);
 
-        newGesture.setOnClickListener(this);
-        newGesture.setEnabled(false);
-
-        d3Button.setOnClickListener(this);
+        newGesture.setOnClickListener(this);    //listener for recording button
+        newGesture.setEnabled(false);           //can't be pressed if watch hasn't connected yet
+        d3Button.setOnClickListener(this);      //choosing recognition algorithm buttons
         fftButton.setOnClickListener(this);
         saxButton.setOnClickListener(this);
+        trainButton.setOnClickListener(this);
+        ////////////////////////////////////////////////////////////////////////////////////
 
-
+        /** register bluetooth adapter and listener */
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Wearable.getDataClient(this).addListener(this);
 
+        /** prompt user to grant storage permission for I/O */
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},0);
         }
-        String[] args = new String[0];
-        initializeFromCSV();
 
-        try {
-            MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(args);
-        } catch (IOException e) {
+        initializeFromCSV(); //method for loading raw data from csv for transforming them into a new data set (used during development)
+        writeSAXtoTXT();
+        try{
+        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
+        }catch (IOException e){
             e.printStackTrace();
         }
+
     }
 
+    /** onClick Override handles each button click for choosing an algorithm or recording */
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.buttonZeroValue:
                 if (!start) {
-                    //chrono.setBase(SystemClock.elapsedRealtime() - pauseOffset);
-                    //chrono.start();
-                    exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f/*, 30*/);
+                    //if(chosenAlgorithm == null) {
+                    //    Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                        //exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f);  //calling method with 3 float cells having the value of 30 to distinguish where every new gesture starts (used during development)
+                    //}
                     start = true;
-                } else {
-                    Toast.makeText(this, "Already Running!", Toast.LENGTH_LONG).show();
+                    //Log.d(TAG, "onClick: BEFORE START" + recordedCount);
+                    recordedCount++;
+                    //Log.d(TAG, "onClick: AFTER START"  + recordedCount);
+                    d3Button.setEnabled(false); //disabling the other buttons to avoid transforming the data before gesture is complete
+                    saxButton.setEnabled(false);
+                    fftButton.setEnabled(false);
+                }
+                else {
+                    Toast.makeText(this, "Already Recording!", Toast.LENGTH_LONG).show();
                 }
                 break;
 
             case R.id.d3:
                 currentAlgo.setText(R.string.current_algorithm_d3);
+                chosenAlgorithm = "d3";
                 break;
 
             case R.id.fft:
                 currentAlgo.setText(R.string.current_algorithm_fft);
-                tryFFT();
+                chosenAlgorithm = "fft";
+                if(!gestureGeneralBuffer.isEmpty()) {
+                    bufferFFT();
+                    gestureGeneralBuffer.clear();
+                }
+                //datasetFFT();
                 break;
 
             case R.id.sax:
                 currentAlgo.setText(R.string.current_algorithm_sax);
+                chosenAlgorithm = "sax";
+                if(!gestureGeneralBuffer.isEmpty()) {
+                    try {
+                        MainTestSAX_SingleTimeSeries.main(bufferSAX());
+                        gestureGeneralBuffer.clear();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                }
+                else{
+                    Toast.makeText(this, "Record something to process!",Toast.LENGTH_LONG).show();
+                }
+                /*
+                String[] args = new String[0];
+                try {
+                    MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(args);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                */
+                break;
+
+            case R.id.trainButton:
+                currentAlgo.setText(R.string.current_algorithm_none);
+                chosenAlgorithm = null;
                 break;
 
         }
     }
+
+    /** onStop and onDestroy unregister the listener and register again onResume */
 
     @Override
     public void onResume(){
@@ -208,15 +262,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         super.onDestroy();
     }
 
-
+    /** Thread that updates the UI with info about incoming data and completed gestures */
     public void logthis(){
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                    //coords.setText("X: "+ values[0] + "\nY: " + values[1] + "\nZ: " + values[2] + "\n Stamp: " + timeStamp);
-                        coords.setText("Recorded Gestures: " + gesturesComplete);
-                        packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount);
-            }
+        runOnUiThread(() -> {
+            coords.setText("Recorded Gestures: " + gesturesComplete + " Gesture General Buffer: " + gestureGeneralBuffer.size());
+            //Log.d(TAG, "Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer.size());
+            packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount );
         });
     }
 
@@ -230,38 +281,55 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if (path.equals(datapath)) {
                     DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
-                    //timeStamp = dataMapItem.getDataMap().getLong("ValueTimestamp");
                     if(values!=null && start) {
-                        //Log.d(TAG, "X: "+ values[0] + " Y: " + values[1] + " Z: " + values[2]);
-                        //diff = timeStamp - System.currentTimeMillis();
-                        //if(!flag) startTime = System.currentTimeMillis();
-                        //flag = true;
-
-                        /*
-                        Log.d(TAG, "\nonDataChanged:"+"\nX: "+ values[0] + "\nY: " + values[1] +
-                                "\nZ: " + values[2] + "\n WatchStamp: " + timeStamp +
-                                "\nMobileStamp: " + System.currentTimeMillis() + "\nDiff: " + diff + " ns\n");
-                        */
                         if((recordedCount - gesturesComplete) % 31 == 0){
-                            //chrono.stop();
-                            //pauseOffset = SystemClock.elapsedRealtime() - chrono.getBase();
-                            exportDataToCSV(new float[] {-30.00f, -30.00f, -30.00f}, filePath, f/*, -30*/);
+                            if(chosenAlgorithm == "sax"){
+                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
+                                //gestureGeneralBuffer.clear();
+
+                            }
+                            else if(chosenAlgorithm == "fft"){
+                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
+                                //gestureGeneralBuffer.clear();
+
+                            }
+                            else if(chosenAlgorithm == "d3"){
+                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
+                                //gestureGeneralBuffer.clear();
+                            }
+                            else{
+                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                                //exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePath, f);
+                                //gestureGeneralBuffer.clear();
+                            }
                             start = false;
+                            //Log.d(TAG, "onClick: BEFORE STOP" + recordedCount);
+                            recordedCount++;
+                            //Log.d(TAG, "onClick: AFTER STOP"  + recordedCount);
                             gesturesComplete++;
 
                         }
                         else{
-                            logthis();
+                            //Log.d(TAG, "onDataChanged: I AM HERE BITCHEZZZZZZ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+                            //coords.setText("Recorded Gestures: " + gesturesComplete);
+                            //Log.d(TAG, "Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer.size());
+                            //packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer);
                             dataBuffer();
-                            exportDataToCSV(values,filePath,f/*, timeStamp*/);
+                            logthis();
+                            if(chosenAlgorithm == null){
+                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                                //exportDataToCSV(values,filePath,f);
+                            }
                         }
                     }
                     else{
                         if(!start) {
-                            //Log.d(TAG, "onDataChanged: RECEIVING BUT NOT RECORDING MATE --> Received Count:" + receivedCount);
                             logthis();
-                            newGesture.setEnabled(true);
-                            //if(receivedCount > 200) newGesture.setEnabled(true);
+                            d3Button.setEnabled(true);
+                            saxButton.setEnabled(true);
+                            fftButton.setEnabled(true);
+                            if(receivedCount > 100) newGesture.setEnabled(true);
                         }
                         else Log.d(TAG, "onDataChanged: SHIT HAPPENS");
                     }
@@ -275,44 +343,102 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             }
         }
         receivedCount++;
-        //newGesture.setEnabled(false);
-        //Log.d(TAG, "onDataChanged: EXITING THIS SHIT");
     }
 
     public void dataBuffer(){
 
-        //Log.d(TAG, "\ndataBuffer: SIZE:" + gestureValuesBuffer.size());
+        gestureValuesBufferX.add(values[0]);
+        gestureValuesBufferY.add(values[1]);
+        gestureValuesBufferZ.add(values[2]);
+        //Log.d(TAG, "\ndataBufferX: SIZE:" + gestureValuesBufferX.size());
+        //Log.d(TAG, "\ndataBufferY: SIZE:" + gestureValuesBufferY.size());
+        //Log.d(TAG, "\ndataBufferZ: SIZE:" + gestureValuesBufferZ.size());
+        //Log.d(TAG, "dataBuffer: before increment"+ recordedCount);
+        recordedCount++;
+        //Log.d(TAG, "dataBuffer: after increment"+ recordedCount);
 
         if(gestureValuesBufferX.size() == 30 && gestureValuesBufferY.size() == 30 && gestureValuesBufferZ.size() == 30) {
 
-            Log.d(TAG, "\ndataBuffer: GENERAL SIZE BEFORE CLEAR:" + gestureGeneralBuffer.size());
+//            Log.d(TAG, "\ndataBuffer: GENERAL SIZE BEFORE CLEAR:" + gestureGeneralBuffer.size());
+//
+//            if(gestureGeneralBuffer.size() >= 90){
+//                if(chosenAlgorithm.equals("sax")){  //Write data to txt file
+//                    writeSAXtoTXT();
+//                }
+//                else if(chosenAlgorithm.equals("fft")){
+//                    bufferFFT();
+//                }
+//                gestureGeneralBuffer.clear();
+//                Log.d(TAG, "\ndataBuffer: SIZE AFTER CLEAR:" + gestureGeneralBuffer.size());
+//            }
 
-            if(gestureGeneralBuffer.size() >= 180){ gestureGeneralBuffer.clear(); Log.d(TAG, "\ndataBuffer: SIZE AFTER CLEAR:" + gestureGeneralBuffer.size()); }
+            gestureGeneralBuffer.addAll(0, gestureValuesBufferX);
+            gestureGeneralBuffer.addAll(30, gestureValuesBufferY);
+            gestureGeneralBuffer.addAll(60, gestureValuesBufferZ);
 
-                gestureGeneralBuffer.addAll(0, gestureValuesBufferX);
-                gestureGeneralBuffer.addAll(30, gestureValuesBufferY);
-                gestureGeneralBuffer.addAll(60, gestureValuesBufferZ);
-
-            Log.d(TAG, "\ndataBuffer: SIZEs BEFORE CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
+            //Log.d(TAG, "\ndataBuffer: SIZEs BEFORE CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
 
             gestureValuesBufferX.clear();
             gestureValuesBufferY.clear();
             gestureValuesBufferZ.clear();
 
-            Log.d(TAG, "\ndataBuffer: SIZEs AFTER CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
+            //Log.d(TAG, "\ndataBuffer: SIZEs AFTER CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
         }
 
-
-        gestureValuesBufferX.add(values[0]);
-        gestureValuesBufferY.add(values[1]);
-        gestureValuesBufferZ.add(values[2]);
     }
 
-    public void tryFFT(){
-        Log.d(TAG, "tryFFT");
+    public void writeSAXtoTXT(){
+        int inc = 0;
+        try {
+            BufferedWriter TXTwriter = new BufferedWriter(new FileWriter(fSAX));
+            for(float[] valsRow : dataSet){
+                for(float valsCol : valsRow) {
+                    TXTwriter.append(Float.toString(valsCol));
+                    TXTwriter.append(",");
+                }
+                TXTwriter.newLine();
+            }
+            TXTwriter.flush();
+            TXTwriter.close();
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public String[] bufferSAX(){
+        String[] buffData = new String[90];
+        for(int i = 0; i<gestureGeneralBuffer.size(); i++){
+            buffData[i] = gestureGeneralBuffer.get(i).toString();
+        }
+        return buffData;
+    }
+
+    public void bufferFFT(){
+        int count = 0;
+        //array that keeps the absolute values of the data after being transformed
+        float[] absFFTbuffer = new float[64];
+        int r = 0;
+        for(int j = 0; j<90; j++){
+            if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
+                count=0;
+                continue;
+            }
+
+            bufferrow[r] = new Complex(gestureGeneralBuffer.get(j),0);
+            r++;
+            count++;
+        }
+        fft(bufferrow);
+        for(int a = 0; a < bufferrow.length; a++){
+            absFFTbuffer[a] = (float) (bufferrow[a].abs()/64.0);
+            Log.d((a+1)+" --> ",  " " + absFFTbuffer[a] + System.lineSeparator());
+        }
+    }
+
+    public void datasetFFT(){
         int count = 0;
         for(int i = 0; i < 120; i++){
-            r = 0;
+            int r = 0;
             for(int j = 0; j<90; j++){
                 if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
                     count=0;
@@ -321,7 +447,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
                 row[r] = new Complex(dataSet[i][j],0);
                 r++;
-
                 count++;
             }
             fft(row);
@@ -329,7 +454,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 fftDataset[i][k] = row[k];
             }
         }
-        Log.d(TAG, "********************************************************************************************************r = " + r);
         exportDataToCSV(new float[]{1},filePathFFT, fFFT);
         exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat);
     }
@@ -340,21 +464,16 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             FileReader read = new FileReader(filePathRead);
             reader = new CSVReader(read);
             String[] lines;
-            int j = 0;
-            int i = 0;
+            int i = 0,j = 0;
             String[] linesOut = reader.readNext();
             while((lines = reader.readNext()) != null){
                 for(String current : lines){
                     if(j==90)
                         break;
                     dataSet[i][j] = Float.parseFloat(current);
-
-
-                    //Log.d("","" + dataSet[i][j]);
                     j++;
 
                 }
-                //Log.d("", "************\n");
                 j = 0;
                 i++;
             }
@@ -363,7 +482,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
-    public void exportDataToCSV(float[] accData, String fp, File FL/*, long stamp*/){
+    public void exportDataToCSV(float[] accData, String fp, File FL){
 
         try{
         if(FL.exists()&&!FL.isDirectory())
@@ -382,11 +501,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             val[0] = Float.toString(accData[0]);
             val[1] = Float.toString(accData[1]);
             val[2] = Float.toString(accData[2]);
-            //val[3] = Long.toString(stamp);
 
             recordedCount++;
-            //Log.d(TAG, baseDir+"\nonEXPORT: "+val[0]+" "+val[1]+" "+val[2]+" "+val[3] + " --> Recorded Count: " + recordedCount);
-
             writer.writeNext(val);
         }
         else {
@@ -398,11 +514,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 }
                 writer.writeNext(val);
             }
-            //Log.d("fftExport",  row[fftCell].toStringZ() + "\tCell: " + (fftCell+1));
         }
-
-        //writer.writeNext(new String[] {"0","0","0","0"});
-
             writer.close();
         } catch (IOException e) {
             e.printStackTrace();

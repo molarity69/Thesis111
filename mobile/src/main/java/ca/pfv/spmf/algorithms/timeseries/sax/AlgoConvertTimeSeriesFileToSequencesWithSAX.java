@@ -146,13 +146,15 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 	 */
 	private void writeSAXRepresentationToOutputFile(SAXSymbol[] saxRepresentation, String name) throws IOException {
 		// Print the time series
+		int inc = 0;
 		writer.newLine();
 		writer.write("@NAME=" + name);
 		writer.newLine();
 		for(SAXSymbol symbol : saxRepresentation){
-			writer.write(symbol.symbol + " -1 ");
+			if(inc == saxRepresentation.length - 1){ writer.write(symbol.symbol); inc = 0;}
+			else{ writer.write(symbol.symbol + ","); inc++;}
 		}
-		writer.write("-2");
+		//writer.write(".");
 	}
 	
 	/**

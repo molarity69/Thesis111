@@ -15,11 +15,15 @@ public class MainTestSAX_SingleTimeSeries {
 
 	public static void main(String [] arg) throws IOException{
 
-		int numberOfSegments = 3;
-		int numberOfSymbols = 3;
+		int numberOfSegments = 10;
+		int numberOfSymbols = 7;
 		
 		// Create a time series
-		double [] timeSeriesData = new double[]{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0};
+		double [] timeSeriesData = new double[arg.length];
+		for (int i = 0; i< arg.length; i++) {
+			timeSeriesData[i] = Double.parseDouble(arg[i]);
+		}
+
 		TimeSeries timeSeries = new TimeSeries(timeSeriesData, "SERIES1");
 		
 		// Set this variable to true to deactivate the PAA part of the SAX algorithm.
@@ -38,6 +42,9 @@ public class MainTestSAX_SingleTimeSeries {
 		// Print the sax sequences
 		System.out.println(" SAX SEQUENCE : ");
 		System.out.println(" Sequence : " + Arrays.toString(saxSequence));
+
+		SAXSymbol[] sym = new SAXSymbol[numberOfSegments];
+		sym = saxSequence;
 
 	}
 	

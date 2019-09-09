@@ -65,7 +65,6 @@ public class AlgoPiecewiseAggregateApproximation {
 	public TimeSeries runAlgorithm(TimeSeries timeSeries, int numberOfSegments) throws IOException {
 		// check some error for parameters
 		if(timeSeries.data.length < numberOfSegments){
-            Log.d("THIS IS THE PROBLEM BITCH : \t", timeSeries.data.length+ " < " + numberOfSegments);
 			throw new IllegalArgumentException(" The number of segments should be less than or equal to the number of data points in the time series");
 		}
 		

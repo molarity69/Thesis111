@@ -19,7 +19,7 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 	public static void main(String [] arg) throws IOException{
 		
 		// the input file
-		String input = MainActivity.baseDir + File.separator + "contextSAX.txt";
+		String input = MainActivity.baseDir + File.separator + "saxInput.txt";
 
 		// Parameters of the algorithm
 		String separator = ",";
@@ -30,11 +30,11 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 		reader.printStats();
 		
 		// the output file
-		String output = MainActivity.baseDir + File.separator + "output1.txt";//".//output.txt";
+		String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
 
 		// Parameters of the algorithm
-		int numberOfSegments = 4;
-		int numberOfSymbols = 4;
+		int numberOfSegments = 10;
+		int numberOfSymbols = 7;
 		
 		// Set this variable to true to not apply PAA before SAX
 		boolean deactivatePAA = false;

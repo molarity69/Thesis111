@@ -8,8 +8,9 @@
     <string name="fft">FFT</string>
     <string name="_3">$3</string>
     <string name="sax">SAX</string>
-    <string name="current_algorithm_none">Current Algorithm: None</string>
+    <string name="current_algorithm_none">Current Algorithm: None (Training)</string>
     <string name="current_algorithm_d3">Current Algorithm: $3</string>
     <string name="current_algorithm_fft">Current Algorithm: FFT</string>
     <string name="current_algorithm_sax">Current Algorithm: SAX</string>
+    <string name="trainButton">Train</string>
 </resources>
