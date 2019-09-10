@@ -13,9 +13,12 @@ import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
  */
 public class MainTestSAX_SingleTimeSeries {
 
+	static SAXSymbol[] sym ;
+	public static final int constant = 9;
+
 	public static void main(String [] arg) throws IOException{
 
-		int numberOfSegments = 10;
+		int numberOfSegments = constant;
 		int numberOfSymbols = 7;
 		
 		// Create a time series
@@ -43,9 +46,19 @@ public class MainTestSAX_SingleTimeSeries {
 		System.out.println(" SAX SEQUENCE : ");
 		System.out.println(" Sequence : " + Arrays.toString(saxSequence));
 
-		SAXSymbol[] sym = new SAXSymbol[numberOfSegments];
+		sym = new SAXSymbol[numberOfSegments];
 		sym = saxSequence;
 
+	}
+
+	public static int[] getSym(){
+		int[] Result= new int[constant];
+		int i = 0;
+		for(SAXSymbol compSymbols : sym){
+			Result[i] = compSymbols.symbol;
+			i++;
+		}
+		return Result;
 	}
 	
 	public static String fileToPath(String filename) throws UnsupportedEncodingException{

@@ -151,7 +151,7 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 		writer.write("@NAME=" + name);
 		writer.newLine();
 		for(SAXSymbol symbol : saxRepresentation){
-			if(inc == saxRepresentation.length - 1){ writer.write(symbol.symbol); inc = 0;}
+			if(inc == saxRepresentation.length){ writer.write(symbol.symbol); inc = 0;}
 			else{ writer.write(symbol.symbol + ","); inc++;}
 		}
 		//writer.write(".");

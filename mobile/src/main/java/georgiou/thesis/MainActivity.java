@@ -23,12 +23,16 @@ import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVWriter;
+
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,7 +69,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
-
+    private int[][] SAXdataset;
 
     private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
@@ -113,6 +117,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT BUFFER DATA TO TXT
+
+    String fileNameSAXRead = "saxOutput.txt";
+    String filePathSAXRead = baseDir + File.separator + fileNameSAXRead;
+    File fSAXRead = new File(filePathSAXRead);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     ///////////////////////////////////////////////////////////////////////////////////////////// BUFFER ARRAYLISTS FOR INCOMING WATCH DATA
     List<Float> gestureValuesBufferX = new ArrayList<>();
     List<Float> gestureValuesBufferY = new ArrayList<>();
@@ -154,13 +166,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         initializeFromCSV(); //method for loading raw data from csv for transforming them into a new data set (used during development)
-        datasetFFT();
+        //datasetFFT();
         //writeSAXtoTXT();
         //try{
         //MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
         //}catch (IOException e){
         //    e.printStackTrace();
         //}
+        try{ SAXdataset = initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
+
 
     }
 
@@ -208,6 +222,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if(!gestureGeneralBuffer.isEmpty()) {
                     try {
                         MainTestSAX_SingleTimeSeries.main(bufferSAX());
+                        int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();
+
+                        for(int i = 0; i<liveSAX.length; i++){
+                            Log.d(TAG, ""+liveSAX[i]);
+
+                        }
                         gestureGeneralBuffer.clear();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -385,6 +405,39 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
             //Log.d(TAG, "\ndataBuffer: SIZEs AFTER CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
         }
+
+    }
+
+    public int[][] initializeFromSAXtxt() throws IOException {
+        BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(filePathSAXRead))));
+        String thisLine, separator =",";
+        int txtVals[][] = new int[120][9];
+        int i = 0, j = 0;
+        while ((thisLine = myInput.readLine()) != null) {
+            if(thisLine.charAt(0) == '@'){
+                continue;
+            }
+            else{
+                i=0;
+                for(String currLine : thisLine.split(separator)){
+                    txtVals[j][i] = Integer.parseInt(currLine);
+                    i++;
+                    if(i==9) break;
+                }
+                j++;
+            }
+
+        }
+        int a=0;
+        outerloop:
+        for(int[] rows: txtVals){
+            for(int cols: rows){
+                System.out.println(cols);
+                a++;
+                if(a==36) break outerloop;
+            }
+        }
+        return txtVals;
 
     }
 

@@ -33,7 +33,7 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 		String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
 
 		// Parameters of the algorithm
-		int numberOfSegments = 10;
+		int numberOfSegments = 9;
 		int numberOfSymbols = 7;
 		
 		// Set this variable to true to not apply PAA before SAX
