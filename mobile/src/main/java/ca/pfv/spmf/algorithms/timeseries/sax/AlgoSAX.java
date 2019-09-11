@@ -45,7 +45,7 @@ public class AlgoSAX {
 	long endTimestamp = 0;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = true;
+	boolean DEBUG_MODE = false;
 	
 	/** The symbols created for the last converted time series */
 	SAXSymbol[] symbols;

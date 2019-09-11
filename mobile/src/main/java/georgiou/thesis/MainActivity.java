@@ -4,7 +4,6 @@ import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
-import android.media.SoundPool;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -36,13 +35,24 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
+import java.util.Random;
 
 import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
-import edu.berkeley.compbio.jlibsvm.kernel.GaussianRBFKernel;
+import ca.pfv.spmf.patterns.cluster.DoubleArray;
+import ca.pfv.spmf.patterns.cluster.DoubleArrayInstance;
+import edu.berkeley.compbio.jlibsvm.legacyexec.svm_train;
+import edu.berkeley.compbio.jlibsvm.legacyexec.svm_predict;
+import libsvm.svm;
+import libsvm.svm_model;
+import libsvm.svm_node;
+import libsvm.svm_parameter;
+import libsvm.svm_problem;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
@@ -66,14 +76,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private int receivedCount = 1;  //checking received data
     private volatile boolean start = false; //checking if recording has started
     private int gesturesComplete = 0;   //checking total recorded gestures
-    private String chosenAlgorithm = null;  //checking which button is pressed
+    private String chosenAlgorithm = "0";  //checking which button is pressed
 
     public BluetoothAdapter mBluetoothAdapter; //bluetooth initializer
     public String datapath = "/data_path"; //path for bluetooth communication
 
     private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
-    int txtVals[][] = new int[120][constant];
+    int[][] txtVals = new int[120][constant];
+    double[][] fftFloatDataset = new double[120][65];
 
     private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
@@ -105,6 +116,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////////////////////////////////IMPORT FFT DATA IN FLOAT FROM CSV
+
+//    String fileNameFFTfloat = "FFTAnalysisDataFloat.csv";
+//    String filePathFFTfloat = baseDir + File.separator + fileNameFFTfloat;
+//    File fFFTfloat = new File(filePathFFTfloat);
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     /////////////////////////////////////////////////////////////////////////////////////////////IMPORT TRANSPOSED DATA FROM CSV
 
     String fileNameRead = "TransposedAnalysisData.csv";
@@ -121,11 +140,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT BUFFER DATA TO TXT
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED DATA SET TO TXT
 
     String fileNameSAXRead = "saxOutput.txt";
     String filePathSAXRead = baseDir + File.separator + fileNameSAXRead;
-    File fSAXRead = new File(filePathSAXRead);
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -149,15 +167,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         Log.d(TAG, "OnCreate ");
 
         ////////////////////////////////////////////////////////////////////////////////////LAYOUT COMPONENTS
-        coords = (TextView) findViewById(R.id.coords);
-        packetView = (TextView) findViewById(R.id.packets);
-        currentAlgo = (TextView) findViewById(R.id.currentAlgo);
-        gestureRecognized = (TextView) findViewById(R.id.gestureRecognized);
-        newGesture = (Button) findViewById(R.id.buttonZeroValue);
-        d3Button = (Button) findViewById(R.id.d3);
-        fftButton = (Button) findViewById(R.id.fft);
-        saxButton = (Button) findViewById(R.id.sax);
-        trainButton = (Button) findViewById(R.id.trainButton);
+        coords = findViewById(R.id.coords);
+        packetView = findViewById(R.id.packets);
+        currentAlgo = findViewById(R.id.currentAlgo);
+        gestureRecognized = findViewById(R.id.gestureRecognized);
+        newGesture = findViewById(R.id.buttonZeroValue);
+        d3Button = findViewById(R.id.d3);
+        fftButton = findViewById(R.id.fft);
+        saxButton = findViewById(R.id.sax);
+        trainButton = findViewById(R.id.trainButton);
 
         newGesture.setOnClickListener(this);    //listener for recording button
         newGesture.setEnabled(false);           //can't be pressed if watch hasn't connected yet
@@ -167,17 +185,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         trainButton.setOnClickListener(this);
         ////////////////////////////////////////////////////////////////////////////////////
 
-        /** register bluetooth adapter and listener */
+        /* register bluetooth adapter and listener */
         mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         Wearable.getDataClient(this).addListener(this);
 
-        /** prompt user to grant storage permission for I/O */
+        /* prompt user to grant storage permission for I/O */
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},0);
         }
 
         initializeFromCSV(); //method for loading raw data from csv for transforming them into a new data set (used during development)
-        //datasetFFT();
+        datasetFFT();
         writeSAXtoTXT();
         try{
         MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
@@ -186,10 +204,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
         try{initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
 
+        scrambleData(fftFloatDataset);
 
     }
 
     public void enableButtons(boolean doIt){
+
         d3Button.setEnabled(doIt); //disabling the other buttons to avoid transforming the data before gesture is complete
         saxButton.setEnabled(doIt);
         fftButton.setEnabled(doIt);
@@ -203,13 +223,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         switch (v.getId()) {
             case R.id.buttonZeroValue:
                 if (!start) {
-                    if(chosenAlgorithm == "train") {
+                    if(chosenAlgorithm.equals("train")) {
                         exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f);  //calling method with 3 float cells having the value of 30 to distinguish where every new gesture starts (used during development)
                     }
                     start = true;
-                    //Log.d(TAG, "onClick: BEFORE START" + recordedCount);
                     recordedCount++;
-                    //Log.d(TAG, "onClick: AFTER START"  + recordedCount);
                     enableButtons(false);
                 }
                 else {
@@ -227,8 +245,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
-                    bufferFFT();
+                    //bufferFFT();
                     gestureGeneralBuffer.clear();
+                }
+                else{
+                    Toast.makeText(this, "Record something to process!",Toast.LENGTH_LONG).show();
                 }
                 //datasetFFT();
                 enableButtons(true);
@@ -243,10 +264,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         MainTestSAX_SingleTimeSeries.main(bufferSAX());
                         int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();
 
-                        for(int i = 0; i<liveSAX.length; i++){
-                            Log.e(TAG, "USER INPUT -----> \t"+liveSAX[i]);
-
+                        for (int sax : liveSAX) {
+                            Log.e(TAG, "USER INPUT -----> \t" + sax);
                         }
+
                         recognitionAlgo(chosenAlgorithm,liveSAX);
                         gestureGeneralBuffer.clear();
                     } catch (IOException e) {
@@ -271,6 +292,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 currentAlgo.setText(R.string.current_algorithm_none);
                 chosenAlgorithm = "train";
                 break;
+
             default:
                 break;
 
@@ -278,7 +300,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     /** onStop and onDestroy unregister the listener and register again onResume */
-
     @Override
     public void onResume(){
         Log.d(TAG, "onResume");
@@ -309,8 +330,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     /** Thread that updates the UI with info about incoming data and completed gestures */
     public void logthis(){
         runOnUiThread(() -> {
-            coords.setText("Recorded Gestures: " + gesturesComplete + " Gesture General Buffer: " + gestureGeneralBuffer.size());
-            packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount );
+            coords.setText("Recorded Gestures: " + gesturesComplete + "\nBuffer: " + gestureGeneralBuffer.size());
+            packetView.setText("Received/Recorded" + receivedCount + "/" + recordedCount );
         });
     }
 
@@ -326,30 +347,22 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
                     if(values!=null && start) {
                         if((recordedCount - gesturesComplete) % 31 == 0){
-                            if(chosenAlgorithm == "train"){
-                                Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                            if(chosenAlgorithm.equals("train")){
                                 exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePath, f);
+                                Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
                             }
                             else {
                                 Toast.makeText(this, "Recording completed", Toast.LENGTH_LONG).show();
                             }
                             start = false;
-                            //Log.d(TAG, "onClick: BEFORE STOP" + recordedCount);
                             recordedCount++;
-                            //Log.d(TAG, "onClick: AFTER STOP"  + recordedCount);
                             gesturesComplete++;
-
                         }
-                        else{
-                            //Log.d(TAG, "onDataChanged: I AM HERE BITCHEZZZZZZ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-                            //coords.setText("Recorded Gestures: " + gesturesComplete);
-                            //Log.d(TAG, "Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer.size());
-                            //packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer);
+                        else {
                             dataBuffer();
                             logthis();
-                            if(chosenAlgorithm == null){
-                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
-                                //exportDataToCSV(values,filePath,f);
+                            if(chosenAlgorithm.equals("train")){
+                                exportDataToCSV(values,filePath,f);
                             }
                         }
                     }
@@ -381,53 +394,31 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         gestureValuesBufferX.add(values[0]);
         gestureValuesBufferY.add(values[1]);
         gestureValuesBufferZ.add(values[2]);
-        //Log.d(TAG, "\ndataBufferX: SIZE:" + gestureValuesBufferX.size());
-        //Log.d(TAG, "\ndataBufferY: SIZE:" + gestureValuesBufferY.size());
-        //Log.d(TAG, "\ndataBufferZ: SIZE:" + gestureValuesBufferZ.size());
-        //Log.d(TAG, "dataBuffer: before increment"+ recordedCount);
+
         recordedCount++;
-        //Log.d(TAG, "dataBuffer: after increment"+ recordedCount);
 
         if(gestureValuesBufferX.size() == 30 && gestureValuesBufferY.size() == 30 && gestureValuesBufferZ.size() == 30) {
 
-//            Log.d(TAG, "\ndataBuffer: GENERAL SIZE BEFORE CLEAR:" + gestureGeneralBuffer.size());
-//
             if(gestureGeneralBuffer.size() >= 90){
                 gestureGeneralBuffer.clear();
             }
-//                if(chosenAlgorithm.equals("sax")){  //Write data to txt file
-//                    writeSAXtoTXT();
-//                }
-//                else if(chosenAlgorithm.equals("fft")){
-//                    bufferFFT();
-//                }
-//                gestureGeneralBuffer.clear();
-//                Log.d(TAG, "\ndataBuffer: SIZE AFTER CLEAR:" + gestureGeneralBuffer.size());
-//            }
 
             gestureGeneralBuffer.addAll(0, gestureValuesBufferX);
             gestureGeneralBuffer.addAll(30, gestureValuesBufferY);
             gestureGeneralBuffer.addAll(60, gestureValuesBufferZ);
-
-            //Log.d(TAG, "\ndataBuffer: SIZEs BEFORE CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
-
             gestureValuesBufferX.clear();
             gestureValuesBufferY.clear();
             gestureValuesBufferZ.clear();
-
-            //Log.d(TAG, "\ndataBuffer: SIZEs AFTER CLEAR (X, Y, Z):" + gestureValuesBufferX.size() + gestureValuesBufferY.size() + gestureValuesBufferZ.size());
         }
-
     }
 
     public void initializeFromSAXtxt() throws IOException {
+
         BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(filePathSAXRead))));
         String thisLine, separator =",";
         int i , j = 0;
         while ((thisLine = myInput.readLine()) != null) {
-            if(thisLine.charAt(0) == '@'){
-                continue;
-            }
+            if(thisLine.charAt(0) == '@'){ continue; }
             else{
                 i=0;
                 for(String currLine : thisLine.split(separator)){
@@ -437,83 +428,66 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 }
                 j++;
             }
-
         }
-        int a=0;
-        outerloop:
-        for(int[] rows: txtVals){
-            for(int cols: rows){
-                System.out.println(cols);
-                a++;
-                if(a==36) break outerloop;
-            }
-        }
-
     }
 
-    public String recognitionAlgo(String algorithm, int[] sax){
+    public void recognitionAlgo(String algorithm, int[] sax){
 
         switch (algorithm){
             case "d3":
                 break;
+
             case "fft":
                 break;
+
             case "sax":
                 int[] diff = new int[txtVals[0].length];
                 double[][] diffDev = new double[txtVals.length][txtVals[0].length];
                 double[] diffSum = new double[txtVals.length];
                 double dev = 0.16;
                 double min = 100;
-                //Log.e(TAG, "txtVals[0].length -->\t" + txtVals[0].length + "\ttxtVals.length -->\t" + txtVals.length + "\tsax.length -->\t" + sax.length + "\tdiff.length -->\t" + diff.length);
                 for(int i = 0; i < txtVals.length; i++){
                     for(int j = 0; j < txtVals[0].length; j++){
                         diff[j] = sax[j] - txtVals[i][j];
-                        //Log.e(TAG, "recognitionAlgo: SAX[J] -->\t" + sax[j] +"\tj = "+j);
                         if(diff[j] < -1 || diff[j] > 1){
                             diffDev[i][j] = (Math.abs(diff[j])-1) * dev;
                         }
                         else{
                             diffDev[i][j] = 0;
                         }
-                        //Log.e(TAG, "recognitionAlgo: diffDev -->\t" + diffDev[i][j] + "\tdiff -->\t" + diff[j]);
-
                     }
                 }
                 for(int i = 0; i<diffDev.length; i++){
                     for( int j = 0; j<diffDev[0].length; j++){
                         diffSum[i] += diffDev[i][j];
-                        //Log.e(TAG, "recognitionAlgo: DIFF SUM ----->\t" + diffSum[i] + "\tfor i = " + i);
                     }
                     min = (diffSum[i] < min) ? diffSum[i] : min;
-                    //Log.d(TAG, "recognitionAlgo: SHOW ME THE MINIMUM YOU SOB ------------------------------------------->>>\t" + min);
                     if(min == 0) { findGestureWithSAX(i); break; }
                 }
-
                 Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
                 int index = findIndex(diffSum,min);
                 findGestureWithSAX(index);
                 break;
+
             default:
                 break;
         }
-        return "";
     }
 
     public int findIndex(double[] array, double min){
 
         for(int i = 0; i<array.length; i++){
-
                 if(array[i] == min){
                     Log.e(TAG, "findIndex: The index that a match was found is:\t" + i);
                     return i;
                 }
-
         }
         Log.e(TAG, "findIndex: \t\t\t I WILL RETURN -1");
         return -1;
     }
 
     public void playDaSound(int rawID){
+
         if(player == null){
             player = MediaPlayer.create(this, rawID);
             player.setOnCompletionListener(mediaPlayer -> {
@@ -521,37 +495,21 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 player = null;
             });
         }
-
         player.start();
     }
 
     public void findGestureWithSAX(int index){
-        if(index < 24) {
-            gestureRecognized.setText(R.string.currGestHH);
-            playDaSound(R.raw.hh);
-        }
-        else if (index >= 24 && index < 48) {
-            gestureRecognized.setText(R.string.currGestHU);
-            playDaSound(R.raw.hu);
-        }
-        else if (index >= 48 && index < 72) {
-            gestureRecognized.setText(R.string.currGestHUD);
-            playDaSound(R.raw.hud);
-        }
-        else if(index >= 72 && index < 96) {
-            gestureRecognized.setText(R.string.currGestHH2);
-            playDaSound(R.raw.hh2);
-        }
-        else if (index >= 96 && index < 120) {
-            gestureRecognized.setText(R.string.currGestHU2);
-            playDaSound(R.raw.hu2);
-        }
-        else
-            System.out.println("I WILL NOT BE PRINTED UNDER ANY CIRCUMSTANCES");
 
+        if(index < 24) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
+        else if (index < 48) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
+        else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
+        else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
+        else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
+        else System.out.println("I WILL NOT BE PRINTED UNDER ANY CIRCUMSTANCES");
     }
 
     public String[] bufferSAX(){
+
         String[] buffData = new String[90];
         for(int i = 0; i<gestureGeneralBuffer.size(); i++){
             buffData[i] = gestureGeneralBuffer.get(i).toString();
@@ -560,7 +518,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     public void writeSAXtoTXT(){
-        int inc = 0;
+
         try {
             BufferedWriter TXTwriter = new BufferedWriter(new FileWriter(fSAX));
             for(float[] valsRow : dataSet){
@@ -578,16 +536,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     public void bufferFFT(){
+
         int count = 0;
-        //array that keeps the absolute values of the data after being transformed
-        float[] absFFTbuffer = new float[64];
+        float[] absFFTbuffer = new float[64]; //array that keeps the absolute values of the data after being transformed
         int r = 0;
         for(int j = 0; j<90; j++){
             if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
                 count=0;
                 continue;
             }
-
             bufferrow[r] = new Complex(gestureGeneralBuffer.get(j),0);
             r++;
             count++;
@@ -600,6 +557,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     public void datasetFFT(){
+
         int count = 0;
         for(int i = 0; i < 120; i++){
             int r = 0;
@@ -608,7 +566,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     count=0;
                     continue;
                 }
-
                 row[r] = new Complex(dataSet[i][j],0);
                 r++;
                 count++;
@@ -621,10 +578,44 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         exportDataToCSV(new float[]{1},filePathFFT, fFFT);
         exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat);
     }
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////SVM
 
+    public void svm(){
+
+    }
+
+    public void scrambleData(double[][] input){
+
+            // Creating a object for Random class
+            Random r = new Random();
+
+            // Start from the last element and swap one by one. We don't
+            // need to run for the first element that's why i > 0
+            for (int i = input.length-1; i > 0; i--) {
+
+                // Pick a random index from 0 to i
+                int j = r.nextInt(i+1);
+
+                double[][] temp = new double[input.length][input[0].length];
+                for(int k = 0; k< input[0].length; k++){
+                    // Swap arr[i] with the element at random index
+                    temp[i][k] = input[i][k];
+                    input[i][k] = input[j][k];
+                    input[j][k] = temp[i][k];
+                    // Prints the random array
+                    System.out.println(input[i][k]);
+                }
+
+            }
+
+
+    }
+
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////
     public void initializeFromCSV(){
+
         try{
-            Log.d(TAG, "initializeFromCSV: *************************\n*************************\n*************************\n*************************\n*************************\n");
             FileReader read = new FileReader(filePathRead);
             reader = new CSVReader(read);
             String[] lines;
@@ -636,7 +627,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         break;
                     dataSet[i][j] = Float.parseFloat(current);
                     j++;
-
                 }
                 j = 0;
                 i++;
@@ -649,15 +639,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     public void exportDataToCSV(float[] accData, String fp, File FL){
 
         try{
-        if(FL.exists()&&!FL.isDirectory())
-        {
-
+        if(FL.exists()&&!FL.isDirectory()) {
             FileWriter mFileWriter = new FileWriter(fp, true);
             writer = new CSVWriter(mFileWriter);
         }
-        else
-        {
-                writer = new CSVWriter(new FileWriter(fp));
+        else {
+            writer = new CSVWriter(new FileWriter(fp));
         }
 
         if(accData.length == 3) {
@@ -669,29 +656,19 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             writer.writeNext(val);
         }
         else {
-            String[] val = new String[64];
-            char axis = ' ';
-            int valIter = 1;
+            String[] val = new String[65];
             for(int j = 0; j< fftDataset.length; j++){
-//                if(j == 0) {
-//
-//                    for(int line = 0; line < fftDataset[0].length; line++){
-//                        if(line<=30) {axis = 'X';}
-//                        else if(line>30 || line<=60) {axis = 'Y';}
-//                        else if(line>60 || line<=90) {axis = 'Z';}
-//
-//                        if(valIter == 31) {valIter = 1;}
-//
-//                        val[line] = ""+axis+(valIter);
-//                        valIter++;
-//                    }
-//                    writer.writeNext(val, false);
-//                }
                 for(int k = 0; k<fftDataset[0].length; k++){
-
                     if(accData.length == 1) val[k] = fftDataset[j][k].toStringZ();
                     else val[k] = Float.toString((float)(fftDataset[j][k].abs()/64.0));
+                    fftFloatDataset[j][k] = (fftDataset[j][k].abs()/64.0);
                 }
+                if(j<24){fftFloatDataset[j][64] = 1; val[64] = "hh";}
+                else if(j<48){fftFloatDataset[j][64] = 2; val[64] = "hu";}
+                else if(j<72){fftFloatDataset[j][64] = 3; val[64] = "hud";}
+                else if(j<96){fftFloatDataset[j][64] = 4; val[64] = "hh2";}
+                else if(j<120){fftFloatDataset[j][64] = 5; val[64] = "hu2";}
+
                 writer.writeNext(val,false);
             }
         }

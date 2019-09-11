@@ -44,7 +44,7 @@ public class AlgoTimeSeriesReader {
 	long endTimestamp = 0;  
 	
 	/** This program will execute in DEBUG MODE if this variable is true */
-	boolean DEBUG_MODE = true;
+	boolean DEBUG_MODE = false;
 	
 	/** The number of time series in the last file that was read */
 	int timeSeriesCount = 0;

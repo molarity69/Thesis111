@@ -40,4 +40,5 @@ dependencies {
     implementation files('libs/jlibsvm-0.911-javadoc.jar')
     implementation files('libs/jlibsvm-0.911-sources.jar')
     implementation files('libs/jlibsvm-0.911-tests.jar')
+    implementation files('libs/libsvm.jar')
 }
