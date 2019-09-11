@@ -170,6 +170,14 @@ public class AlgoConvertTimeSeriesFileToSequencesWithSAX {
 		}
 	}
 
+//	private String[] passSAXSymbolsToMainActivity(SAXSymbol[] symbols){
+//		String[] read = new String[symbols.length];
+//		for(int i = 0; i<symbols.length;i++){
+//			read[i] = symbols[i].toString();
+//		}
+//		return read;
+//	}
+
 	/**
 	 * Print statistics about the latest execution to System.out.
 	 */

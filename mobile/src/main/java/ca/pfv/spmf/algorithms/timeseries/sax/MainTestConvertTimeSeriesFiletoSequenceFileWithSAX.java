@@ -10,6 +10,9 @@ import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
 import ca.pfv.spmf.algorithms.timeseries.reader_writer.AlgoTimeSeriesReader;
 import georgiou.thesis.MainActivity;
 
+import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
+import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constantSym;
+
 /**
  * Example of how to use SAX algorithm for converting a time series from the source code.
  * @author Philippe Fournier-Viger, 2016.
@@ -33,8 +36,8 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 		String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
 
 		// Parameters of the algorithm
-		int numberOfSegments = 9;
-		int numberOfSymbols = 7;
+		int numberOfSegments = constant;
+		int numberOfSymbols = constantSym;
 		
 		// Set this variable to true to not apply PAA before SAX
 		boolean deactivatePAA = false;

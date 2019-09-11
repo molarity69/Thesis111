@@ -14,12 +14,13 @@ import ca.pfv.spmf.algorithms.timeseries.TimeSeries;
 public class MainTestSAX_SingleTimeSeries {
 
 	static SAXSymbol[] sym ;
-	public static final int constant = 9;
+	public static final int constant = 30;
+	public static final int constantSym = 15;
 
 	public static void main(String [] arg) throws IOException{
 
 		int numberOfSegments = constant;
-		int numberOfSymbols = 7;
+		int numberOfSymbols = constantSym;
 		
 		// Create a time series
 		double [] timeSeriesData = new double[arg.length];

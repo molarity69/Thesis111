@@ -13,4 +13,10 @@
     <string name="current_algorithm_fft">Current Algorithm: FFT</string>
     <string name="current_algorithm_sax">Current Algorithm: SAX</string>
     <string name="trainButton">Train</string>
+    <string name="currGest">Last gesture Performed: None</string>
+    <string name="currGestHH">Last gesture Performed: <b>hh</b></string>
+    <string name="currGestHU">Last gesture Performed: <b>hu</b></string>
+    <string name="currGestHUD">Last gesture Performed: <b>hud</b></string>
+    <string name="currGestHH2">Last gesture Performed: <b>hh2</b></string>
+    <string name="currGestHU2">Last gesture Performed: <b>hu2</b></string>
 </resources>

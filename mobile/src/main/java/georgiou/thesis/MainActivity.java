@@ -3,6 +3,8 @@ package georgiou.thesis;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.SoundPool;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
@@ -36,6 +38,7 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
@@ -51,6 +54,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private TextView coords;
     private TextView packetView;
     private TextView currentAlgo;
+    private TextView gestureRecognized;
     private Button newGesture;
     private Button d3Button;
     private Button fftButton;
@@ -69,7 +73,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
-    private int[][] SAXdataset;
+    int txtVals[][] = new int[120][constant];
 
     private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
@@ -132,6 +136,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     List<Float> gestureGeneralBuffer = new ArrayList<>();
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    ////////////////////////////////////////////////////////////////////////////////////////////NOTIFICATION SOUNDS
+
+    MediaPlayer player;
+
+    ////////////////////////////////////////////////////////////////////////////////////////////
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -142,6 +152,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         coords = (TextView) findViewById(R.id.coords);
         packetView = (TextView) findViewById(R.id.packets);
         currentAlgo = (TextView) findViewById(R.id.currentAlgo);
+        gestureRecognized = (TextView) findViewById(R.id.gestureRecognized);
         newGesture = (Button) findViewById(R.id.buttonZeroValue);
         d3Button = (Button) findViewById(R.id.d3);
         fftButton = (Button) findViewById(R.id.fft);
@@ -167,15 +178,23 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         initializeFromCSV(); //method for loading raw data from csv for transforming them into a new data set (used during development)
         //datasetFFT();
-        //writeSAXtoTXT();
-        //try{
-        //MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
-        //}catch (IOException e){
-        //    e.printStackTrace();
-        //}
-        try{ SAXdataset = initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
+        writeSAXtoTXT();
+        try{
+        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
+        }catch (IOException e){
+            e.printStackTrace();
+        }
+        try{initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
 
 
+    }
+
+    public void enableButtons(boolean doIt){
+        d3Button.setEnabled(doIt); //disabling the other buttons to avoid transforming the data before gesture is complete
+        saxButton.setEnabled(doIt);
+        fftButton.setEnabled(doIt);
+        trainButton.setEnabled(doIt);
+        newGesture.setEnabled(doIt);
     }
 
     /** onClick Override handles each button click for choosing an algorithm or recording */
@@ -184,17 +203,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         switch (v.getId()) {
             case R.id.buttonZeroValue:
                 if (!start) {
-                    //if(chosenAlgorithm == null) {
-                    //    Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
-                        //exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f);  //calling method with 3 float cells having the value of 30 to distinguish where every new gesture starts (used during development)
-                    //}
+                    if(chosenAlgorithm == "train") {
+                        exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f);  //calling method with 3 float cells having the value of 30 to distinguish where every new gesture starts (used during development)
+                    }
                     start = true;
                     //Log.d(TAG, "onClick: BEFORE START" + recordedCount);
                     recordedCount++;
                     //Log.d(TAG, "onClick: AFTER START"  + recordedCount);
-                    d3Button.setEnabled(false); //disabling the other buttons to avoid transforming the data before gesture is complete
-                    saxButton.setEnabled(false);
-                    fftButton.setEnabled(false);
+                    enableButtons(false);
                 }
                 else {
                     Toast.makeText(this, "Already Recording!", Toast.LENGTH_LONG).show();
@@ -209,25 +225,29 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             case R.id.fft:
                 currentAlgo.setText(R.string.current_algorithm_fft);
                 chosenAlgorithm = "fft";
+                enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
                     bufferFFT();
                     gestureGeneralBuffer.clear();
                 }
                 //datasetFFT();
+                enableButtons(true);
                 break;
 
             case R.id.sax:
                 currentAlgo.setText(R.string.current_algorithm_sax);
                 chosenAlgorithm = "sax";
+                enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
                     try {
                         MainTestSAX_SingleTimeSeries.main(bufferSAX());
                         int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();
 
                         for(int i = 0; i<liveSAX.length; i++){
-                            Log.d(TAG, ""+liveSAX[i]);
+                            Log.e(TAG, "USER INPUT -----> \t"+liveSAX[i]);
 
                         }
+                        recognitionAlgo(chosenAlgorithm,liveSAX);
                         gestureGeneralBuffer.clear();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -244,11 +264,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     e.printStackTrace();
                 }
                 */
+                enableButtons(true);
                 break;
 
             case R.id.trainButton:
                 currentAlgo.setText(R.string.current_algorithm_none);
-                chosenAlgorithm = null;
+                chosenAlgorithm = "train";
+                break;
+            default:
                 break;
 
         }
@@ -287,7 +310,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     public void logthis(){
         runOnUiThread(() -> {
             coords.setText("Recorded Gestures: " + gesturesComplete + " Gesture General Buffer: " + gestureGeneralBuffer.size());
-            //Log.d(TAG, "Received/Recorded: " + receivedCount + "/" + recordedCount + " Gesture General Buffer: " + gestureGeneralBuffer.size());
             packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount );
         });
     }
@@ -304,25 +326,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");
                     if(values!=null && start) {
                         if((recordedCount - gesturesComplete) % 31 == 0){
-                            if(chosenAlgorithm == "sax"){
-                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
-                                //gestureGeneralBuffer.clear();
-
+                            if(chosenAlgorithm == "train"){
+                                Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
+                                exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePath, f);
                             }
-                            else if(chosenAlgorithm == "fft"){
-                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
-                                //gestureGeneralBuffer.clear();
-
-                            }
-                            else if(chosenAlgorithm == "d3"){
-                                Toast.makeText(this, "Under Construction!", Toast.LENGTH_LONG).show();
-                                //gestureGeneralBuffer.clear();
-                            }
-                            else{
-                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
-                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
-                                //exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePath, f);
-                                //gestureGeneralBuffer.clear();
+                            else {
+                                Toast.makeText(this, "Recording completed", Toast.LENGTH_LONG).show();
                             }
                             start = false;
                             //Log.d(TAG, "onClick: BEFORE STOP" + recordedCount);
@@ -347,9 +356,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     else{
                         if(!start) {
                             logthis();
-                            d3Button.setEnabled(true);
+                            d3Button.setEnabled(true); //re-enabling all the buttons after the gesture is complete
                             saxButton.setEnabled(true);
                             fftButton.setEnabled(true);
+                            trainButton.setEnabled(true);
                             if(receivedCount > 100) newGesture.setEnabled(true);
                         }
                         else Log.d(TAG, "onDataChanged: SHIT HAPPENS");
@@ -382,7 +392,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
 //            Log.d(TAG, "\ndataBuffer: GENERAL SIZE BEFORE CLEAR:" + gestureGeneralBuffer.size());
 //
-//            if(gestureGeneralBuffer.size() >= 90){
+            if(gestureGeneralBuffer.size() >= 90){
+                gestureGeneralBuffer.clear();
+            }
 //                if(chosenAlgorithm.equals("sax")){  //Write data to txt file
 //                    writeSAXtoTXT();
 //                }
@@ -408,11 +420,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     }
 
-    public int[][] initializeFromSAXtxt() throws IOException {
+    public void initializeFromSAXtxt() throws IOException {
         BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(filePathSAXRead))));
         String thisLine, separator =",";
-        int txtVals[][] = new int[120][9];
-        int i = 0, j = 0;
+        int i , j = 0;
         while ((thisLine = myInput.readLine()) != null) {
             if(thisLine.charAt(0) == '@'){
                 continue;
@@ -422,7 +433,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 for(String currLine : thisLine.split(separator)){
                     txtVals[j][i] = Integer.parseInt(currLine);
                     i++;
-                    if(i==9) break;
+                    if(i==constant) break;
                 }
                 j++;
             }
@@ -437,8 +448,115 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if(a==36) break outerloop;
             }
         }
-        return txtVals;
 
+    }
+
+    public String recognitionAlgo(String algorithm, int[] sax){
+
+        switch (algorithm){
+            case "d3":
+                break;
+            case "fft":
+                break;
+            case "sax":
+                int[] diff = new int[txtVals[0].length];
+                double[][] diffDev = new double[txtVals.length][txtVals[0].length];
+                double[] diffSum = new double[txtVals.length];
+                double dev = 0.16;
+                double min = 100;
+                //Log.e(TAG, "txtVals[0].length -->\t" + txtVals[0].length + "\ttxtVals.length -->\t" + txtVals.length + "\tsax.length -->\t" + sax.length + "\tdiff.length -->\t" + diff.length);
+                for(int i = 0; i < txtVals.length; i++){
+                    for(int j = 0; j < txtVals[0].length; j++){
+                        diff[j] = sax[j] - txtVals[i][j];
+                        //Log.e(TAG, "recognitionAlgo: SAX[J] -->\t" + sax[j] +"\tj = "+j);
+                        if(diff[j] < -1 || diff[j] > 1){
+                            diffDev[i][j] = (Math.abs(diff[j])-1) * dev;
+                        }
+                        else{
+                            diffDev[i][j] = 0;
+                        }
+                        //Log.e(TAG, "recognitionAlgo: diffDev -->\t" + diffDev[i][j] + "\tdiff -->\t" + diff[j]);
+
+                    }
+                }
+                for(int i = 0; i<diffDev.length; i++){
+                    for( int j = 0; j<diffDev[0].length; j++){
+                        diffSum[i] += diffDev[i][j];
+                        //Log.e(TAG, "recognitionAlgo: DIFF SUM ----->\t" + diffSum[i] + "\tfor i = " + i);
+                    }
+                    min = (diffSum[i] < min) ? diffSum[i] : min;
+                    //Log.d(TAG, "recognitionAlgo: SHOW ME THE MINIMUM YOU SOB ------------------------------------------->>>\t" + min);
+                    if(min == 0) { findGestureWithSAX(i); break; }
+                }
+
+                Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
+                int index = findIndex(diffSum,min);
+                findGestureWithSAX(index);
+                break;
+            default:
+                break;
+        }
+        return "";
+    }
+
+    public int findIndex(double[] array, double min){
+
+        for(int i = 0; i<array.length; i++){
+
+                if(array[i] == min){
+                    Log.e(TAG, "findIndex: The index that a match was found is:\t" + i);
+                    return i;
+                }
+
+        }
+        Log.e(TAG, "findIndex: \t\t\t I WILL RETURN -1");
+        return -1;
+    }
+
+    public void playDaSound(int rawID){
+        if(player == null){
+            player = MediaPlayer.create(this, rawID);
+            player.setOnCompletionListener(mediaPlayer -> {
+                player.release();
+                player = null;
+            });
+        }
+
+        player.start();
+    }
+
+    public void findGestureWithSAX(int index){
+        if(index < 24) {
+            gestureRecognized.setText(R.string.currGestHH);
+            playDaSound(R.raw.hh);
+        }
+        else if (index >= 24 && index < 48) {
+            gestureRecognized.setText(R.string.currGestHU);
+            playDaSound(R.raw.hu);
+        }
+        else if (index >= 48 && index < 72) {
+            gestureRecognized.setText(R.string.currGestHUD);
+            playDaSound(R.raw.hud);
+        }
+        else if(index >= 72 && index < 96) {
+            gestureRecognized.setText(R.string.currGestHH2);
+            playDaSound(R.raw.hh2);
+        }
+        else if (index >= 96 && index < 120) {
+            gestureRecognized.setText(R.string.currGestHU2);
+            playDaSound(R.raw.hu2);
+        }
+        else
+            System.out.println("I WILL NOT BE PRINTED UNDER ANY CIRCUMSTANCES");
+
+    }
+
+    public String[] bufferSAX(){
+        String[] buffData = new String[90];
+        for(int i = 0; i<gestureGeneralBuffer.size(); i++){
+            buffData[i] = gestureGeneralBuffer.get(i).toString();
+        }
+        return buffData;
     }
 
     public void writeSAXtoTXT(){
@@ -457,14 +575,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }catch (Exception e){
             e.printStackTrace();
         }
-    }
-
-    public String[] bufferSAX(){
-        String[] buffData = new String[90];
-        for(int i = 0; i<gestureGeneralBuffer.size(); i++){
-            buffData[i] = gestureGeneralBuffer.get(i).toString();
-        }
-        return buffData;
     }
 
     public void bufferFFT(){
@@ -556,7 +666,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             val[1] = Float.toString(accData[1]);
             val[2] = Float.toString(accData[2]);
 
-            recordedCount++;
             writer.writeNext(val);
         }
         else {
