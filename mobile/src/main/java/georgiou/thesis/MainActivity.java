@@ -596,12 +596,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 // Pick a random index from 0 to i
                 int j = r.nextInt(i+1);
 
-                double[][] temp = new double[input.length][input[0].length];
+                double[] temp = new double[input[0].length];
                 for(int k = 0; k< input[0].length; k++){
                     // Swap arr[i] with the element at random index
-                    temp[i][k] = input[i][k];
+                    temp[k] = input[i][k];
                     input[i][k] = input[j][k];
-                    input[j][k] = temp[i][k];
+                    input[j][k] = temp[k];
                     // Prints the random array
                     System.out.println(input[i][k]);
                 }
