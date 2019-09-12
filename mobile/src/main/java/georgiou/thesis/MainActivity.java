@@ -85,6 +85,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
     int[][] txtVals = new int[120][constant];
     double[][] fftFloatDataset = new double[120][65];
+    svm_node[][] nodes;
 
     private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
@@ -140,10 +141,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED DATA SET TO TXT
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED SAX DATA SET TO TXT
 
     String fileNameSAXRead = "saxOutput.txt";
     String filePathSAXRead = baseDir + File.separator + fileNameSAXRead;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED FFT DATA SET TO TXT
+
+    String fileNameFFTRead = "fftOutput.txt";
+    String filePathFFTRead = baseDir + File.separator + fileNameFFTRead;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -203,9 +211,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             e.printStackTrace();
         }
         try{initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
-
-        scrambleData(fftFloatDataset);
-
     }
 
     public void enableButtons(boolean doIt){
@@ -438,6 +443,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 break;
 
             case "fft":
+                findGestureWithFFTDataSVM(buildModel(scrambleData(fftFloatDataset)),bufferFFT());
                 break;
 
             case "sax":
@@ -505,7 +511,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
         else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
         else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
-        else System.out.println("I WILL NOT BE PRINTED UNDER ANY CIRCUMSTANCES");
+        else System.out.println("LET'S HOPE I WONT BE PRINTED");
     }
 
     public String[] bufferSAX(){
@@ -535,10 +541,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
-    public void bufferFFT(){
+    public svm_node[] bufferFFT(){
 
         int count = 0;
         float[] absFFTbuffer = new float[64]; //array that keeps the absolute values of the data after being transformed
+        svm_node[] nodes = new svm_node[absFFTbuffer.length];
         int r = 0;
         for(int j = 0; j<90; j++){
             if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
@@ -552,8 +559,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         fft(bufferrow);
         for(int a = 0; a < bufferrow.length; a++){
             absFFTbuffer[a] = (float) (bufferrow[a].abs()/64.0);
+            nodes[a].value = absFFTbuffer[a];
+            nodes[a].index = a+1;
             Log.d((a+1)+" --> ",  " " + absFFTbuffer[a] + System.lineSeparator());
         }
+        return nodes;
     }
 
     public void datasetFFT(){
@@ -578,37 +588,64 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         exportDataToCSV(new float[]{1},filePathFFT, fFFT);
         exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat);
     }
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////SVM
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////SVM FOR FFT
 
-    public void svm(){
+    public int findGestureWithFFTDataSVM(svm_model model, svm_node[] incoming){
+        double[] scores = new double[2];
+        double result = svm.svm_predict_values(model, incoming, scores);
 
+        return 200;
     }
 
-    public void scrambleData(double[][] input){
+    public double[][] scrambleData(double[][] input){
 
-            // Creating a object for Random class
-            Random r = new Random();
-
-            // Start from the last element and swap one by one. We don't
-            // need to run for the first element that's why i > 0
-            for (int i = input.length-1; i > 0; i--) {
-
-                // Pick a random index from 0 to i
-                int j = r.nextInt(i+1);
-
-                double[] temp = new double[input[0].length];
-                for(int k = 0; k< input[0].length; k++){
-                    // Swap arr[i] with the element at random index
-                    temp[k] = input[i][k];
-                    input[i][k] = input[j][k];
-                    input[j][k] = temp[k];
-                    // Prints the random array
-                    System.out.println(input[i][k]);
-                }
-
+        // Creating a object for Random class
+        Random r = new Random();
+        // Start from the last element and swap one by one. We don't
+        // need to run for the first element that's why i > 0
+        for (int i = input.length-1; i > 0; i--) {
+            // Pick a random index from 0 to i
+            int j = r.nextInt(i+1);
+            double[] temp = new double[input[0].length];
+            for(int k = 0; k< input[0].length; k++){
+                // Swap arr[i] with the element at random index
+                temp[k] = input[i][k];
+                input[i][k] = input[j][k];
+                input[j][k] = temp[k];
             }
+        }
+        return input;
+    }
 
+    public svm_model buildModel(double[][] input){
 
+        svm_parameter param = new svm_parameter();
+        param.svm_type    = svm_parameter.C_SVC;
+        param.kernel_type = svm_parameter.RBF;
+        param.gamma       = 0.802;
+        param.nu          = 0.1608;
+        param.cache_size  = 100;
+
+        svm_problem problem = new svm_problem();
+
+        nodes = new svm_node[input.length][input[0].length-1];
+
+        for(int i = 0; i < input.length; i++){
+            for(int j =0 ; j < input[0].length; j++){
+                if(j == input[0].length-1){
+                    problem.y[j] = input[i][j+1];
+                    break;
+                }
+                nodes[i][j] = new svm_node();
+                nodes[i][j].index = i+1;
+                nodes[i][j].value = input[i][j];
+            }
+        }
+
+        problem.x = nodes;
+        problem.l = nodes.length;
+
+        return svm.svm_train(problem, param);
     }
 
 
