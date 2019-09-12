@@ -250,13 +250,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
-                    //bufferFFT();
+                    int[] nada = new int[0];
+                    recognitionAlgo(chosenAlgorithm,nada);
                     gestureGeneralBuffer.clear();
                 }
                 else{
                     Toast.makeText(this, "Record something to process!",Toast.LENGTH_LONG).show();
                 }
-                //datasetFFT();
+
                 enableButtons(true);
                 break;
 
@@ -559,6 +560,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         fft(bufferrow);
         for(int a = 0; a < bufferrow.length; a++){
             absFFTbuffer[a] = (float) (bufferrow[a].abs()/64.0);
+            nodes[a] = new svm_node();
             nodes[a].value = absFFTbuffer[a];
             nodes[a].index = a+1;
             Log.d((a+1)+" --> ",  " " + absFFTbuffer[a] + System.lineSeparator());
@@ -591,10 +593,28 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////SVM FOR FFT
 
     public int findGestureWithFFTDataSVM(svm_model model, svm_node[] incoming){
-        double[] scores = new double[2];
+        double[] scores = new double[25];
         double result = svm.svm_predict_values(model, incoming, scores);
 
-        return 200;
+        System.out.println(result);
+        System.out.println(scores[0]);
+//        if(){
+//
+//        }
+//        else if(){
+//
+//        }
+//        else if(){
+//
+//        }
+//        else if(){
+//
+//        }
+//        else if(){
+//
+//        }
+//        else
+            return 200;
     }
 
     public double[][] scrambleData(double[][] input){
@@ -627,19 +647,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         param.cache_size  = 100;
 
         svm_problem problem = new svm_problem();
+        problem.y = new double[input.length];
 
         nodes = new svm_node[input.length][input[0].length-1];
 
         for(int i = 0; i < input.length; i++){
-            for(int j =0 ; j < input[0].length; j++){
-                if(j == input[0].length-1){
-                    problem.y[j] = input[i][j+1];
-                    break;
-                }
+            for(int j =0 ; j < input[0].length-1; j++){
                 nodes[i][j] = new svm_node();
                 nodes[i][j].index = i+1;
                 nodes[i][j].value = input[i][j];
             }
+            problem.y[i] = input[i][64];
         }
 
         problem.x = nodes;
