@@ -83,7 +83,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
     int[][] txtVals = new int[120][constant];
     double[][] fftFloatDataset = new double[120][65];
-    svm_node[][] nodes;
+    public static svm_node[][] nodes;
+    public static svm_node[] nodes1;
 
     private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
@@ -215,14 +216,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         try{
             MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
             initializeFromSAXtxt();
-            importSVMmodelDataAndBuild(filePathCoefsRead);
-            importSVMmodelDataAndBuild(filePathSVRead);
-            importSVMmodelDataAndBuild(filePathRhoRead);
+            //importSVMmodelDataAndBuild(filePathCoefsRead);
+            //importSVMmodelDataAndBuild(filePathSVRead);
+            //importSVMmodelDataAndBuild(filePathRhoRead);
         }catch (IOException e){
             e.printStackTrace();
         }
 
-        //model = buildModel(scrambleData(fftFloatDataset));
+
+        model = buildModel(scrambleData(fftFloatDataset));
         //TrainNaiveBayes();
     }
 
@@ -263,7 +265,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
-                    findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()), "");
+                    //findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()), "");
+                    findGestureClass(findGestureWithFFTDataSVM(model,bufferFFT()), "");
+                    int[] label = new int[5];
+                    svm.svm_get_labels(model, label);
+                    System.err.println(Arrays.toString(label));
                     //bayes.setMemoryCapacity(5000);
                     //System.out.println(((BayesClassifier<String, String>) bayes).classifyDetailed(Arrays.asList(bufferFFT())));
                     //findGestureClass(200, bayes.classify(Arrays.asList(bufferFFT())).getCategory());
@@ -450,6 +456,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 j++;
             }
         }
+        myInput.close();
     }
 
     public void findGestureClass(int index, String class1){
@@ -554,7 +561,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         int count = 0;
 
         float[] absFFTbufferForFloat = new float[64];
-        svm_node[] nodes = new svm_node[absFFTbufferForFloat.length];
+        nodes1 = new svm_node[absFFTbufferForFloat.length];
         int r = 0;
         for(int j = 0; j<90; j++){
             if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
@@ -570,13 +577,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/64.0);
             //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat[a]);
             //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat);
-            nodes[a] = new svm_node();
-            nodes[a].value = absFFTbufferForFloat[a];
-            nodes[a].index = a+1;
-            Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbufferForFloat[a] + System.lineSeparator() +"INCOMING DATA INDEX --->\t" + nodes[a].index);
+            nodes1[a] = new svm_node();
+            nodes1[a].value = absFFTbufferForFloat[a];
+            nodes1[a].index = a+1;
+            //Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbufferForFloat[a] + System.lineSeparator() +"INCOMING DATA INDEX --->\t" + nodes[a].index);
         }
 
-        return nodes;//absFFTbuffer;
+        return nodes1;//absFFTbuffer;
     }
 
     public void datasetFFT(){
@@ -652,7 +659,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         model = new svm_model();
         model.sv_coef = new double[4][108];
         model.rho = new double[10];
-        model.SV = new svm_node[64][108];
+        model.SV = new svm_node[108][64];
         BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path))));
         String thisLine, separator =",";
         if(path.contains("coefs")){
@@ -674,17 +681,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     model.SV[j][i] = new svm_node();
                     model.SV[j][i].index = i+1;
                     model.SV[j][i].value = Double.parseDouble(currLine);
-                    System.out.println("INDEX OF NODE --->\t"+model.SV[j][i].index+"\tVALUE OF NODE --->\t" + model.SV[j][i].value + "\tINCOMING VALUE FROM FILE --->\t" + Double.parseDouble(currLine));
+                    //System.out.println("INDEX OF NODE --->\t"+model.SV[j][i].index+"\tVALUE OF NODE --->\t" + model.SV[j][i].value + "\tINCOMING VALUE FROM FILE --->\t" + Double.parseDouble(currLine));
                     i++;
                 }
                 j++;
-            }
-            svm_node[][] temp = new svm_node[model.SV[0].length][model.SV.length];
-            for(int a = 0; a < model.SV.length; a++){
-                for(int b = 0; b< model.SV[0].length; b++){
-                    temp[b][a] = model.SV[a][b];
-                    System.out.println("INDEX OF NODE --->\t"+model.SV[b][a].index+"\tVALUE OF NODE --->\t" + model.SV[b][a].value);
-                }
             }
         }
 
@@ -722,9 +722,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         model.param.gamma       = 0.015625;
         model.param.nu          = 0.5;
         model.param.cache_size  = 100;
+        myInput.close();
     }
 
-    public void buildModel(double[][] input){
+    public svm_model buildModel(double[][] input){
 
         svm_parameter param = new svm_parameter();
         param.svm_type    = svm_parameter.C_SVC;
@@ -750,6 +751,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         problem.x = nodes;
         problem.l = nodes.length;
+
+        return svm.svm_train(problem, param);
     }
 
     public void TrainNaiveBayes(){
