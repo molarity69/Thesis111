@@ -35,19 +35,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Random;
 
 import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
-import ca.pfv.spmf.patterns.cluster.DoubleArray;
-import ca.pfv.spmf.patterns.cluster.DoubleArrayInstance;
-import edu.berkeley.compbio.jlibsvm.legacyexec.svm_train;
-import edu.berkeley.compbio.jlibsvm.legacyexec.svm_predict;
+
 import libsvm.svm;
 import libsvm.svm_model;
 import libsvm.svm_node;
@@ -91,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
+    public svm_model model;
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT RAW ACCELEROMETER DATA TO CSV
 
@@ -145,13 +141,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     String fileNameSAXRead = "saxOutput.txt";
     String filePathSAXRead = baseDir + File.separator + fileNameSAXRead;
-
-    /////////////////////////////////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED FFT DATA SET TO TXT
-
-    String fileNameFFTRead = "fftOutput.txt";
-    String filePathFFTRead = baseDir + File.separator + fileNameFFTRead;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -211,6 +200,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             e.printStackTrace();
         }
         try{initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
+        model = buildModel(scrambleData(fftFloatDataset));
     }
 
     public void enableButtons(boolean doIt){
@@ -250,8 +240,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
-                    int[] nada = new int[0];
-                    recognitionAlgo(chosenAlgorithm,nada);
+                    findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()));
                     gestureGeneralBuffer.clear();
                 }
                 else{
@@ -269,12 +258,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     try {
                         MainTestSAX_SingleTimeSeries.main(bufferSAX());
                         int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();
+                        findGestureWithSAXDataEuclidean(liveSAX);
 
                         for (int sax : liveSAX) {
                             Log.e(TAG, "USER INPUT -----> \t" + sax);
                         }
 
-                        recognitionAlgo(chosenAlgorithm,liveSAX);
                         gestureGeneralBuffer.clear();
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -337,7 +326,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     public void logthis(){
         runOnUiThread(() -> {
             coords.setText("Recorded Gestures: " + gesturesComplete + "\nBuffer: " + gestureGeneralBuffer.size());
-            packetView.setText("Received/Recorded" + receivedCount + "/" + recordedCount );
+            packetView.setText("Received/Recorded: " + receivedCount + "/" + recordedCount );
         });
     }
 
@@ -437,57 +426,55 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
-    public void recognitionAlgo(String algorithm, int[] sax){
+    public void findGestureClass(int index){
 
-        switch (algorithm){
-            case "d3":
-                break;
+        if(index < 24) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
+        else if (index < 48) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
+        else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
+        else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
+        else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
+        else System.out.println("LET'S HOPE I WONT BE PRINTED");
+    }
 
-            case "fft":
-                findGestureWithFFTDataSVM(buildModel(scrambleData(fftFloatDataset)),bufferFFT());
-                break;
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////// SAX
 
-            case "sax":
-                int[] diff = new int[txtVals[0].length];
-                double[][] diffDev = new double[txtVals.length][txtVals[0].length];
-                double[] diffSum = new double[txtVals.length];
-                double dev = 0.16;
-                double min = 100;
-                for(int i = 0; i < txtVals.length; i++){
-                    for(int j = 0; j < txtVals[0].length; j++){
-                        diff[j] = sax[j] - txtVals[i][j];
-                        if(diff[j] < -1 || diff[j] > 1){
-                            diffDev[i][j] = (Math.abs(diff[j])-1) * dev;
-                        }
-                        else{
-                            diffDev[i][j] = 0;
-                        }
-                    }
+    public void findGestureWithSAXDataEuclidean(int[] sax){
+
+        int[] diff = new int[txtVals[0].length];
+        double[][] diffDev = new double[txtVals.length][txtVals[0].length];
+        double[] diffSum = new double[txtVals.length];
+        double dev = 0.16;
+        double min = 100;
+        for(int i = 0; i < txtVals.length; i++){
+            for(int j = 0; j < txtVals[0].length; j++){
+                diff[j] = sax[j] - txtVals[i][j];
+                if(diff[j] < -1 || diff[j] > 1){
+                    diffDev[i][j] = (Math.abs(diff[j])-1) * dev;
                 }
-                for(int i = 0; i<diffDev.length; i++){
-                    for( int j = 0; j<diffDev[0].length; j++){
-                        diffSum[i] += diffDev[i][j];
-                    }
-                    min = (diffSum[i] < min) ? diffSum[i] : min;
-                    if(min == 0) { findGestureWithSAX(i); break; }
+                else{
+                    diffDev[i][j] = 0;
                 }
-                Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
-                int index = findIndex(diffSum,min);
-                findGestureWithSAX(index);
-                break;
-
-            default:
-                break;
+            }
         }
+        for(int i = 0; i<diffDev.length; i++){
+            for( int j = 0; j<diffDev[0].length; j++){
+                diffSum[i] += diffDev[i][j];
+            }
+            min = (diffSum[i] < min) ? diffSum[i] : min;
+            if(min == 0) { findGestureClass(i); break; }
+        }
+        Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
+        int index = findIndex(diffSum,min);
+        findGestureClass(index);
     }
 
     public int findIndex(double[] array, double min){
 
         for(int i = 0; i<array.length; i++){
-                if(array[i] == min){
-                    Log.e(TAG, "findIndex: The index that a match was found is:\t" + i);
-                    return i;
-                }
+            if(array[i] == min){
+                Log.e(TAG, "findIndex: The index that a match was found is:\t" + i);
+                return i;
+            }
         }
         Log.e(TAG, "findIndex: \t\t\t I WILL RETURN -1");
         return -1;
@@ -503,16 +490,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             });
         }
         player.start();
-    }
-
-    public void findGestureWithSAX(int index){
-
-        if(index < 24) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
-        else if (index < 48) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
-        else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
-        else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
-        else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
-        else System.out.println("LET'S HOPE I WONT BE PRINTED");
     }
 
     public String[] bufferSAX(){
@@ -542,6 +519,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////// FFT TOOLS AND SVM
+
     public svm_node[] bufferFFT(){
 
         int count = 0;
@@ -563,7 +544,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             nodes[a] = new svm_node();
             nodes[a].value = absFFTbuffer[a];
             nodes[a].index = a+1;
-            Log.d((a+1)+" --> ",  " " + absFFTbuffer[a] + System.lineSeparator());
+            Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbuffer[a] + System.lineSeparator());
         }
         return nodes;
     }
@@ -590,30 +571,29 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         exportDataToCSV(new float[]{1},filePathFFT, fFFT);
         exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat);
     }
-    ///////////////////////////////////////////////////////////////////////////////////////////////////////////SVM FOR FFT
 
     public int findGestureWithFFTDataSVM(svm_model model, svm_node[] incoming){
         double[] scores = new double[25];
         double result = svm.svm_predict_values(model, incoming, scores);
 
         System.out.println(result);
-        System.out.println(scores[0]);
-//        if(){
-//
-//        }
-//        else if(){
-//
-//        }
-//        else if(){
-//
-//        }
-//        else if(){
-//
-//        }
-//        else if(){
-//
-//        }
-//        else
+
+        if(result == 1.0){
+            return 20;
+        }
+        else if(result == 2.0){
+            return 40;
+        }
+        else if(result == 3.0){
+            return 60;
+        }
+        else if(result == 4.0){
+            return 80;
+        }
+        else if(result == 5.0){
+            return 100;
+        }
+
             return 200;
     }
 
@@ -642,8 +622,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         svm_parameter param = new svm_parameter();
         param.svm_type    = svm_parameter.C_SVC;
         param.kernel_type = svm_parameter.RBF;
-        param.gamma       = 0.802;
-        param.nu          = 0.1608;
+        param.gamma       = 0.015625;
+        param.nu          = 0.5;
         param.cache_size  = 100;
 
         svm_problem problem = new svm_problem();
@@ -660,14 +640,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             problem.y[i] = input[i][64];
         }
 
+
         problem.x = nodes;
         problem.l = nodes.length;
 
         return svm.svm_train(problem, param);
     }
 
-
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////// CSV TOOLS
+
     public void initializeFromCSV(){
 
         try{
@@ -732,4 +715,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             e.printStackTrace();
         }
     }
+
+    ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 }
