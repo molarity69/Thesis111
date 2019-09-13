@@ -158,6 +158,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     String filePathRhoRead = baseDir + File.separator + fileNameRhoRead;
     String fileNameSVRead = "classifier_SV.txt";
     String filePathSVRead = baseDir + File.separator + fileNameSVRead;
+    String modelName = "svm.model";
+    String filePathModelName = baseDir + File.separator +modelName;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -573,13 +575,18 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             count++;
         }
         fft(bufferrow);
+        svm_node node = new svm_node();
         for(int a = 0; a < bufferrow.length; a++){
             absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/64.0);
+            node = new svm_node();
+            node.index = a+1;
+            node.value = absFFTbufferForFloat[a];
+            nodes1[a] = node;
             //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat[a]);
             //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat);
-            nodes1[a] = new svm_node();
-            nodes1[a].value = absFFTbufferForFloat[a];
-            nodes1[a].index = a+1;
+//            nodes1[a] = new svm_node();
+//            nodes1[a].value = absFFTbufferForFloat[a];
+//            nodes1[a].index = a+1;
             //Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbufferForFloat[a] + System.lineSeparator() +"INCOMING DATA INDEX --->\t" + nodes[a].index);
         }
 
@@ -678,7 +685,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             while ((thisLine = myInput.readLine()) != null) {
                 i=0;
                 for(String currLine : thisLine.split(separator)){
-                    model.SV[j][i] = new svm_node();
+                    svm_node node = new svm_node();
+                    model.SV[i][j] = new svm_node();
                     model.SV[j][i].index = i+1;
                     model.SV[j][i].value = Double.parseDouble(currLine);
                     //System.out.println("INDEX OF NODE --->\t"+model.SV[j][i].index+"\tVALUE OF NODE --->\t" + model.SV[j][i].value + "\tINCOMING VALUE FROM FILE --->\t" + Double.parseDouble(currLine));
@@ -736,21 +744,28 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         svm_problem problem = new svm_problem();
         problem.y = new double[input.length];
+        problem.x = new svm_node[120][64];
 
         nodes = new svm_node[input.length][input[0].length-1];
 
-        for(int i = 0; i < input.length; i++){
-            for(int j =0 ; j < input[0].length-1; j++){
-                nodes[i][j] = new svm_node();
-                nodes[i][j].index = i+1;
-                nodes[i][j].value = input[i][j];
+        for(int i = 0; i < 120; i++){
+            problem.x[i] = new svm_node[64];
+            for(int j =0 ; j < 64; j++){
+                svm_node node = new svm_node();
+                node.index = j+1;
+                node.value = input[i][j];
+                problem.x[i][j] = node;
             }
             problem.y[i] = input[i][64];
         }
 
+        problem.l = input.length;
 
-        problem.x = nodes;
-        problem.l = nodes.length;
+        try {
+            svm.svm_load_model(filePathModelName);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
         return svm.svm_train(problem, param);
     }
