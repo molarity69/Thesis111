@@ -41,5 +41,5 @@ dependencies {
     implementation files('libs/jlibsvm-0.911-sources.jar')
     implementation files('libs/jlibsvm-0.911-tests.jar')
     implementation files('libs/libsvm.jar')
-    implementation 'com.github.molarity69:Thesis111:1.0.7'
+    implementation 'com.github.ptnplanet:Java-Naive-Bayes-Classifier:1.0.7'
 }

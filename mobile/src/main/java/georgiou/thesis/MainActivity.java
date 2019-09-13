@@ -35,6 +35,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -43,6 +44,8 @@ import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
 
+import de.daslaboratorium.machinelearning.classifier.Classifier;
+import de.daslaboratorium.machinelearning.classifier.bayes.BayesClassifier;
 import libsvm.svm;
 import libsvm.svm_model;
 import libsvm.svm_node;
@@ -87,6 +90,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
     public svm_model model;
+
+    String[] absFFTbuffer = new String[64]; //array that keeps the absolute values of the data after being transformed
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT RAW ACCELEROMETER DATA TO CSV
 
@@ -144,6 +149,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////////////////////////////////IMPORT SVM MODEL DATA FROM TXT
+
+    String fileNameCoefsRead = "classifier_coefs.txt";
+    String filePathCoefsRead = baseDir + File.separator + fileNameCoefsRead;
+    String fileNameRhoRead = "classifier_rho.txt";
+    String filePathRhoRead = baseDir + File.separator + fileNameRhoRead;
+    String fileNameSVRead = "classifier_SV.txt";
+    String filePathSVRead = baseDir + File.separator + fileNameSVRead;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     ///////////////////////////////////////////////////////////////////////////////////////////// BUFFER ARRAYLISTS FOR INCOMING WATCH DATA
     List<Float> gestureValuesBufferX = new ArrayList<>();
     List<Float> gestureValuesBufferY = new ArrayList<>();
@@ -156,6 +172,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     MediaPlayer player;
 
     ////////////////////////////////////////////////////////////////////////////////////////////
+
+    Classifier<String, String>bayes = new BayesClassifier<String, String>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -195,12 +213,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         datasetFFT();
         writeSAXtoTXT();
         try{
-        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
+            MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
+            initializeFromSAXtxt();
+            importSVMmodelDataAndBuild(filePathCoefsRead);
+            importSVMmodelDataAndBuild(filePathSVRead);
+            importSVMmodelDataAndBuild(filePathRhoRead);
         }catch (IOException e){
             e.printStackTrace();
         }
-        try{initializeFromSAXtxt();}catch (Exception e){e.printStackTrace();}
-        model = buildModel(scrambleData(fftFloatDataset));
+
+        //model = buildModel(scrambleData(fftFloatDataset));
+        //TrainNaiveBayes();
     }
 
     public void enableButtons(boolean doIt){
@@ -240,7 +263,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
-                    findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()));
+                    findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()), "");
+                    //bayes.setMemoryCapacity(5000);
+                    //System.out.println(((BayesClassifier<String, String>) bayes).classifyDetailed(Arrays.asList(bufferFFT())));
+                    //findGestureClass(200, bayes.classify(Arrays.asList(bufferFFT())).getCategory());
                     gestureGeneralBuffer.clear();
                 }
                 else{
@@ -426,13 +452,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
-    public void findGestureClass(int index){
+    public void findGestureClass(int index, String class1){
 
-        if(index < 24) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
-        else if (index < 48) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
-        else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
-        else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
-        else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
+        if(index < 24 || class1.equals("hh")) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
+        else if (index < 48 || class1.equals("hu")) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
+        else if (index < 72 || class1.equals("hud")) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
+        else if(index < 96 || class1.equals("hh2")) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
+        else if (index < 120 || class1.equals("hu2")) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
         else System.out.println("LET'S HOPE I WONT BE PRINTED");
     }
 
@@ -461,11 +487,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 diffSum[i] += diffDev[i][j];
             }
             min = (diffSum[i] < min) ? diffSum[i] : min;
-            if(min == 0) { findGestureClass(i); break; }
+            if(min == 0) { findGestureClass(i, ""); break; }
         }
         Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
         int index = findIndex(diffSum,min);
-        findGestureClass(index);
+        findGestureClass(index, "");
     }
 
     public int findIndex(double[] array, double min){
@@ -523,11 +549,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////// FFT TOOLS AND SVM
 
-    public svm_node[] bufferFFT(){
+    public svm_node[]/* String[] */ bufferFFT(){
 
         int count = 0;
-        float[] absFFTbuffer = new float[64]; //array that keeps the absolute values of the data after being transformed
-        svm_node[] nodes = new svm_node[absFFTbuffer.length];
+
+        float[] absFFTbufferForFloat = new float[64];
+        svm_node[] nodes = new svm_node[absFFTbufferForFloat.length];
         int r = 0;
         for(int j = 0; j<90; j++){
             if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
@@ -540,13 +567,16 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
         fft(bufferrow);
         for(int a = 0; a < bufferrow.length; a++){
-            absFFTbuffer[a] = (float) (bufferrow[a].abs()/64.0);
+            absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/64.0);
+            //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat[a]);
+            //absFFTbuffer[a] = String.valueOf(absFFTbufferForFloat);
             nodes[a] = new svm_node();
-            nodes[a].value = absFFTbuffer[a];
+            nodes[a].value = absFFTbufferForFloat[a];
             nodes[a].index = a+1;
-            Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbuffer[a] + System.lineSeparator());
+            Log.d((a+1)+" --> ",  "USER INPUT ---> " + absFFTbufferForFloat[a] + System.lineSeparator() +"INCOMING DATA INDEX --->\t" + nodes[a].index);
         }
-        return nodes;
+
+        return nodes;//absFFTbuffer;
     }
 
     public void datasetFFT(){
@@ -617,7 +647,84 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         return input;
     }
 
-    public svm_model buildModel(double[][] input){
+    public void importSVMmodelDataAndBuild(String path) throws IOException{
+
+        model = new svm_model();
+        model.sv_coef = new double[4][108];
+        model.rho = new double[10];
+        model.SV = new svm_node[64][108];
+        BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path))));
+        String thisLine, separator =",";
+        if(path.contains("coefs")){
+            int i , j = 0;
+            while ((thisLine = myInput.readLine()) != null) {
+                i=0;
+                for(String currLine : thisLine.split(separator)){
+                    model.sv_coef[j][i] = Double.parseDouble(currLine);
+                    i++;
+                }
+                j++;
+            }
+        }
+        else if(path.contains("SV")){
+            int i , j = 0;
+            while ((thisLine = myInput.readLine()) != null) {
+                i=0;
+                for(String currLine : thisLine.split(separator)){
+                    model.SV[j][i] = new svm_node();
+                    model.SV[j][i].index = i+1;
+                    model.SV[j][i].value = Double.parseDouble(currLine);
+                    System.out.println("INDEX OF NODE --->\t"+model.SV[j][i].index+"\tVALUE OF NODE --->\t" + model.SV[j][i].value + "\tINCOMING VALUE FROM FILE --->\t" + Double.parseDouble(currLine));
+                    i++;
+                }
+                j++;
+            }
+            svm_node[][] temp = new svm_node[model.SV[0].length][model.SV.length];
+            for(int a = 0; a < model.SV.length; a++){
+                for(int b = 0; b< model.SV[0].length; b++){
+                    temp[b][a] = model.SV[a][b];
+                    System.out.println("INDEX OF NODE --->\t"+model.SV[b][a].index+"\tVALUE OF NODE --->\t" + model.SV[b][a].value);
+                }
+            }
+        }
+
+        else{
+            int i , j = 0;
+            while ((thisLine = myInput.readLine()) != null) {
+                i=0;
+                for(String currLine : thisLine.split(separator)){
+                    model.rho[i] = Double.parseDouble(currLine);
+                    i++;
+                }
+            }
+        }
+
+        model.label = new int[5];
+        model.nSV = new int[5];
+        model.nr_class = 5;
+        model.l = 108;
+        model.probA = new double[0];
+        model.probB = new double[0];
+        model.label[0] = 1;
+        model.label[1] = 2;
+        model.label[2] = 3;
+        model.label[3] = 5;
+        model.label[4] = 4;
+        model.nSV[0] = 16;
+        model.nSV[1] = 24;
+        model.nSV[2] = 23;
+        model.nSV[3] = 23;
+        model.nSV[4] = 22;
+
+        model.param = new svm_parameter();
+        model.param.svm_type    = svm_parameter.C_SVC;
+        model.param.kernel_type = svm_parameter.RBF;
+        model.param.gamma       = 0.015625;
+        model.param.nu          = 0.5;
+        model.param.cache_size  = 100;
+    }
+
+    public void buildModel(double[][] input){
 
         svm_parameter param = new svm_parameter();
         param.svm_type    = svm_parameter.C_SVC;
@@ -643,8 +750,49 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         problem.x = nodes;
         problem.l = nodes.length;
+    }
 
-        return svm.svm_train(problem, param);
+    public void TrainNaiveBayes(){
+        String[] hh = new String[64], hu = new String[64], hud = new String[64], hh2 = new String[64], hu2 = new String[64];
+        for(int i = 0; i < 120; i++){
+            for(int j = 0; j < 64; j++){
+                if(i < 24){
+                    hh[j] = String.valueOf(fftFloatDataset[i][j]);
+                    System.out.println("hh[j] ---> \t"+hh[j] + "\ti --->\t" + i + "\tj --->\t" + j);
+                }
+                else if(i < 48){
+                    hu[j] = String.valueOf(fftFloatDataset[i][j]);
+                    System.out.println("hu[j] ---> \t"+hu[j] + "\ti --->\t" + i + "\tj --->\t" + j);
+                }
+                else if(i < 72){
+                    hud[j] = String.valueOf(fftFloatDataset[i][j]);
+                    System.out.println("hud[j] ---> \t"+hud[j] + "\ti --->\t" + i + "\tj --->\t" + j);
+                }
+                else if(i < 96){
+                    hh2[j] = String.valueOf(fftFloatDataset[i][j]);
+                    System.out.println("hh2[j] ---> \t"+hh2[j] + "\ti --->\t" + i + "\tj --->\t" + j);
+                }
+                else {
+                    hu2[j] = String.valueOf(fftFloatDataset[i][j]);
+                    System.out.println("hu2[j] ---> \t"+hu2[j] + "\ti --->\t" + i + "\tj --->\t" + j);
+                }
+            }
+            if(i < 24){
+                bayes.learn("hh", Arrays.asList(hh));
+            }
+            else if(i < 48){
+                bayes.learn("hu", Arrays.asList(hu));
+            }
+            else if(i < 72){
+                bayes.learn("hud", Arrays.asList(hud));
+            }
+            else if(i < 96){
+                bayes.learn("hh2", Arrays.asList(hh2));
+            }
+            else {
+                bayes.learn("hu2", Arrays.asList(hu2));
+            }
+        }
     }
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////
