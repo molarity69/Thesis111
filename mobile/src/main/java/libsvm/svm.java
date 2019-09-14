@@ -2352,9 +2352,11 @@ public class svm {
 				kvalue[i] = Kernel.k_function(x,model.SV[i],model.param);
 
 			int[] start = new int[nr_class];
-			start[0] = 0;
-			for(i=1;i<nr_class;i++)
-				start[i] = start[i-1]+model.nSV[i-1];
+			//start[0] = 0;
+//			for(i=1;i<nr_class;i++)
+//				start[i] = start[i-1]+model.nSV[i-1];
+			for(i=0;i<nr_class;i++)
+				start[i] = start[i]+model.nSV[i];
 
 			int[] vote = new int[nr_class];
 			for(i=0;i<nr_class;i++)

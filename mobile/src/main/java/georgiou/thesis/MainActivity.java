@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 
@@ -46,11 +47,24 @@ import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
 
 import de.daslaboratorium.machinelearning.classifier.Classifier;
 import de.daslaboratorium.machinelearning.classifier.bayes.BayesClassifier;
+import edu.berkeley.compbio.jlibsvm.binary.BinaryModel;
+import edu.berkeley.compbio.jlibsvm.binary.C_SVC;
+import edu.berkeley.compbio.jlibsvm.binary.MutableBinaryClassificationProblemImpl;
+import edu.berkeley.compbio.jlibsvm.kernel.GaussianRBFKernel;
+import edu.berkeley.compbio.jlibsvm.labelinverter.StringLabelInverter;
+import edu.berkeley.compbio.jlibsvm.multi.MultiClassModel;
+import edu.berkeley.compbio.jlibsvm.multi.MultiClassProblemImpl;
+import edu.berkeley.compbio.jlibsvm.multi.MultiClassificationSVM;
+import edu.berkeley.compbio.jlibsvm.multi.MutableMultiClassProblemImpl;
+import edu.berkeley.compbio.jlibsvm.scaler.ScalingModel;
+import edu.berkeley.compbio.jlibsvm.util.SparseVector;
 import libsvm.svm;
 import libsvm.svm_model;
 import libsvm.svm_node;
 import libsvm.svm_parameter;
 import libsvm.svm_problem;
+
+import edu.berkeley.compbio.jlibsvm.*;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
 
@@ -90,7 +104,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
-    public svm_model model;
+    public svm_model model = new svm_model();
 
     String[] absFFTbuffer = new String[64]; //array that keeps the absolute values of the data after being transformed
 
@@ -218,15 +232,44 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         try{
             MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
             initializeFromSAXtxt();
-            //importSVMmodelDataAndBuild(filePathCoefsRead);
-            //importSVMmodelDataAndBuild(filePathSVRead);
-            //importSVMmodelDataAndBuild(filePathRhoRead);
+            importSVMmodelDataAndBuild(filePathCoefsRead, filePathSVRead, filePathRhoRead);
         }catch (IOException e){
             e.printStackTrace();
         }
 
 
-        model = buildModel(scrambleData(fftFloatDataset));
+        //model = buildModel(fftFloatDataset);
+//        for(int i = 0; i<model.SV.length;i++){
+//            for(int j=0;j<model.SV[0].length;j++){
+//                System.out.println("NODES IN MODEL --->\t"+model.SV[i][j].value);
+//            }
+//            if(i<4){
+//                System.out.println("NODES IN SV_COEF --->\t"+Arrays.toString(model.sv_coef[i]));
+//            }
+//            if(i<10){
+//                System.out.println("NODES IN RHO --->\t"+model.rho[i]);
+//            }
+//        }
+//
+//
+//        System.out.println("Model.l --->\t"+model.l);
+//        System.out.println("NUMBER OF CLASSES --->\t"+model.nr_class);
+//        System.out.println("LABELS --->\t"+Arrays.toString(model.label));
+//        System.out.println("C --->\t"+model.param.C);
+//        System.out.println("Cache size --->\t"+model.param.cache_size);
+//        System.out.println("Degree --->\t"+model.param.degree);
+//        System.out.println("eps --->\t"+model.param.eps);
+//        System.out.println("gamma --->\t"+model.param.gamma);
+//        System.out.println("kernel type --->\t"+model.param.kernel_type);
+//        System.out.println("nr weight --->\t"+model.param.nr_weight);
+//        System.out.println("nu --->\t"+model.param.nu);
+//        System.out.println("p --->\t"+model.param.p);
+//        System.out.println("probability --->\t"+model.param.probability);
+//        System.out.println("shrinking --->\t"+model.param.shrinking);
+//        System.out.println("svm type --->\t"+model.param.svm_type);
+//        System.out.println("weight --->\t"+Arrays.toString(model.param.weight));
+//        System.out.println("weight label --->\t"+Arrays.toString(model.param.weight_label));
+//        System.out.println("Coef0 --->\t"+model.param.coef0);
         //TrainNaiveBayes();
     }
 
@@ -268,10 +311,10 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 enableButtons(false);
                 if(!gestureGeneralBuffer.isEmpty()) {
                     //findGestureClass(findGestureWithFFTDataSVM(model, bufferFFT()), "");
-                    findGestureClass(findGestureWithFFTDataSVM(model,bufferFFT()), "");
+                    findGestureClass(findGestureWithFFTDataSVM(model,bufferFFT()));
                     int[] label = new int[5];
                     svm.svm_get_labels(model, label);
-                    System.err.println(Arrays.toString(label));
+                    System.err.println("SHO ME DA LABLE ---> "+Arrays.toString(label));
                     //bayes.setMemoryCapacity(5000);
                     //System.out.println(((BayesClassifier<String, String>) bayes).classifyDetailed(Arrays.asList(bufferFFT())));
                     //findGestureClass(200, bayes.classify(Arrays.asList(bufferFFT())).getCategory());
@@ -461,13 +504,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         myInput.close();
     }
 
-    public void findGestureClass(int index, String class1){
+    public void findGestureClass(int index){
 
-        if(index < 24 || class1.equals("hh")) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
-        else if (index < 48 || class1.equals("hu")) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
-        else if (index < 72 || class1.equals("hud")) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
-        else if(index < 96 || class1.equals("hh2")) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
-        else if (index < 120 || class1.equals("hu2")) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
+        if(index < 24 /*|| class1.equals("hh")*/) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
+        else if (index < 48/* || class1.equals("hu")*/) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
+        else if (index < 72 /*|| class1.equals("hud")*/) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
+        else if(index < 96 /*|| class1.equals("hh2")*/) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
+        else if (index < 120 /*|| class1.equals("hu2")*/) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
         else System.out.println("LET'S HOPE I WONT BE PRINTED");
     }
 
@@ -496,11 +539,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 diffSum[i] += diffDev[i][j];
             }
             min = (diffSum[i] < min) ? diffSum[i] : min;
-            if(min == 0) { findGestureClass(i, ""); break; }
+            if(min == 0) { findGestureClass(i); break; }
         }
         Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
         int index = findIndex(diffSum,min);
-        findGestureClass(index, "");
+        findGestureClass(index);
     }
 
     public int findIndex(double[] array, double min){
@@ -575,7 +618,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             count++;
         }
         fft(bufferrow);
-        svm_node node = new svm_node();
+        svm_node node;
         for(int a = 0; a < bufferrow.length; a++){
             absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/64.0);
             node = new svm_node();
@@ -617,10 +660,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     public int findGestureWithFFTDataSVM(svm_model model, svm_node[] incoming){
-        double[] scores = new double[25];
+        double[] scores = new double[10];
+
+        System.out.println("First and second elements of the model --->\t"+model.SV[0][0].value+", "+model.SV[0][1].value);
+        System.out.println("First and second elements of the INCOMING --->\t"+incoming[0].value+", "+incoming[1].value);
         double result = svm.svm_predict_values(model, incoming, scores);
 
-        System.out.println(result);
+        System.out.println("The result ---> "+result);
+        for(double sc : scores)
+            System.out.println("The SCORES --> "+sc);
 
         if(result == 1.0){
             return 20;
@@ -661,15 +709,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         return input;
     }
 
-    public void importSVMmodelDataAndBuild(String path) throws IOException{
+    public svm_model importSVMmodelDataAndBuild(String path1, String path2, String path3) throws IOException{
 
-        model = new svm_model();
         model.sv_coef = new double[4][108];
         model.rho = new double[10];
         model.SV = new svm_node[108][64];
-        BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path))));
+        svm_node[][] node = new svm_node[108][64];
         String thisLine, separator =",";
-        if(path.contains("coefs")){
+        if(path1.contains("coefs")){
+            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path1))));
             int i , j = 0;
             while ((thisLine = myInput.readLine()) != null) {
                 i=0;
@@ -679,25 +727,35 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 }
                 j++;
             }
+            myInput.close();
         }
-        else if(path.contains("SV")){
+            if(path2.contains("SV")){
+            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path2))));
             int i , j = 0;
             while ((thisLine = myInput.readLine()) != null) {
                 i=0;
                 for(String currLine : thisLine.split(separator)){
-                    svm_node node = new svm_node();
-                    model.SV[i][j] = new svm_node();
-                    model.SV[j][i].index = i+1;
-                    model.SV[j][i].value = Double.parseDouble(currLine);
+                    svm_node node1 = new svm_node();
+                    node1.index = i+1;
+                    node1.value = Double.parseDouble(currLine);
+                    model.SV[j][i] = node1;
+                    //node[j][i] = node1;
+                    //System.out.println("Node j: "+j+" Node: i: "+i+"\tContains: "+node[j][i].value);
+                    //System.out.println("Node j: "+j+" Node: i: "+i+"\tContains: "+model.SV[j][i].value);
+//                    model.SV[i][j] = new svm_node();
+//                    model.SV[j][i].index = i+1;
+//                    model.SV[j][i].value = Double.parseDouble(currLine);
                     //System.out.println("INDEX OF NODE --->\t"+model.SV[j][i].index+"\tVALUE OF NODE --->\t" + model.SV[j][i].value + "\tINCOMING VALUE FROM FILE --->\t" + Double.parseDouble(currLine));
                     i++;
                 }
                 j++;
             }
+            myInput.close();
         }
 
-        else{
-            int i , j = 0;
+        if(path3.contains("rho")){
+            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path3))));
+            int i;
             while ((thisLine = myInput.readLine()) != null) {
                 i=0;
                 for(String currLine : thisLine.split(separator)){
@@ -705,7 +763,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     i++;
                 }
             }
+            myInput.close();
         }
+        //model.SV = node;
+
+//        for(int i=0;i<model.SV.length;i++){
+//            for(int j=0;j<model.SV[0].length;j++){
+//                System.out.println("NODES IN METHOD --->\t"+model.SV[i][j].value);
+//            }
+//        }
+
+
 
         model.label = new int[5];
         model.nSV = new int[5];
@@ -716,8 +784,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         model.label[0] = 1;
         model.label[1] = 2;
         model.label[2] = 3;
-        model.label[3] = 5;
-        model.label[4] = 4;
+        model.label[3] = 4;
+        model.label[4] = 5;
         model.nSV[0] = 16;
         model.nSV[1] = 24;
         model.nSV[2] = 23;
@@ -725,12 +793,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         model.nSV[4] = 22;
 
         model.param = new svm_parameter();
-        model.param.svm_type    = svm_parameter.C_SVC;
-        model.param.kernel_type = svm_parameter.RBF;
+        model.param.svm_type    = svm_parameter.NU_SVC;
+        model.param.kernel_type = svm_parameter.LINEAR;
+        model.param.degree = 3;
         model.param.gamma       = 0.015625;
         model.param.nu          = 0.5;
+        model.param.eps = 0.1;
         model.param.cache_size  = 100;
-        myInput.close();
+
+        return model;
     }
 
     public svm_model buildModel(double[][] input){
@@ -754,18 +825,30 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 svm_node node = new svm_node();
                 node.index = j+1;
                 node.value = input[i][j];
-                problem.x[i][j] = node;
+                nodes[i][j] = node;
+                //problem.x[i][j] = node;
             }
             problem.y[i] = input[i][64];
         }
 
+
+        problem.x = nodes;
         problem.l = input.length;
 
-        try {
-            svm.svm_load_model(filePathModelName);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+//        try {
+//            svm.svm_load_model(filePathModelName);
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+
+//        for(int i=0;i<120;i++){
+//            for(int j=0;j<64;j++){
+//                System.out.println("inputArray dataset --->\t" + input[i][j]);
+//                System.out.println("Array NODES to X --->\t" + nodes[i][j].value);
+//                System.out.println("Array problem.x --->\t" + problem.x[i][j].value);
+//            }
+//        }
+
 
         return svm.svm_train(problem, param);
     }
@@ -812,6 +895,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             }
         }
     }
+
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 
