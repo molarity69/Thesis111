@@ -670,21 +670,39 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         for(double sc : scores)
             System.out.println("The SCORES --> "+sc);
 
+
         if(scores[0] > -1.1 && scores[0] < -1.08){
             return 20;
         }
-        else if(scores[0] > -1.07 && scores[0] < -1.03){
+        else if(scores[0] > -1.06 && scores[0] < -1.03){
             return 40;
         }
         else if(scores[0] > -0.8 && scores[0] < -0.5){
             return 60;
         }
-        else if(scores[0] > -1.09 && scores[0] < -1.079){
+        else if(scores[0] > -1.08 && scores[0] < -1.06){
             return 80;
         }
-        else if(scores[0] > -1.0 && scores[0] < -0.8){
+        else if(scores[0] > -1.03 && scores[0] < -0.8){
             return 100;
         }
+        //degree = 2 gamma = 0.02
+
+//        if(scores[0] > -1.1 && scores[0] < -1.08){
+//            return 20;
+//        }
+//        else if(scores[0] > -1.07 && scores[0] < -1.03){
+//            return 40;
+//        }
+//        else if(scores[0] > -0.8 && scores[0] < -0.5){
+//            return 60;
+//        }
+//        else if(scores[0] > -1.09 && scores[0] < -1.079){
+//            return 80;
+//        }
+//        else if(scores[0] > -1.0 && scores[0] < -0.8){
+//            return 100;
+//        }
 //        if(result == 1.0){
 //            return 20;
 //        }
