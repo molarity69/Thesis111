@@ -670,21 +670,36 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         for(double sc : scores)
             System.out.println("The SCORES --> "+sc);
 
-        if(result == 1.0){
+        if(scores[0] > -1.1 && scores[0] < -1.08){
             return 20;
         }
-        else if(result == 2.0){
+        else if(scores[0] > -1.07 && scores[0] < -1.03){
             return 40;
         }
-        else if(result == 3.0){
+        else if(scores[0] > -0.8 && scores[0] < -0.5){
             return 60;
         }
-        else if(result == 4.0){
+        else if(scores[0] > -1.09 && scores[0] < -1.079){
             return 80;
         }
-        else if(result == 5.0){
+        else if(scores[0] > -1.0 && scores[0] < -0.8){
             return 100;
         }
+//        if(result == 1.0){
+//            return 20;
+//        }
+//        else if(result == 2.0){
+//            return 40;
+//        }
+//        else if(result == 3.0){
+//            return 60;
+//        }
+//        else if(result == 4.0){
+//            return 80;
+//        }
+//        else if(result == 5.0){
+//            return 100;
+//        }
 
             return 200;
     }
@@ -794,9 +809,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         model.param = new svm_parameter();
         model.param.svm_type    = svm_parameter.NU_SVC;
-        model.param.kernel_type = svm_parameter.LINEAR;
-        model.param.degree = 3;
-        model.param.gamma       = 0.015625;
+        model.param.kernel_type = svm_parameter.POLY;
+        model.param.degree = 2;
+        model.param.gamma       = 0.02;//0.015513;
         model.param.nu          = 0.5;
         model.param.eps = 0.1;
         model.param.cache_size  = 100;
@@ -809,6 +824,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         svm_parameter param = new svm_parameter();
         param.svm_type    = svm_parameter.C_SVC;
         param.kernel_type = svm_parameter.RBF;
+        param.degree = 3;
         param.gamma       = 0.015625;
         param.nu          = 0.5;
         param.cache_size  = 100;
