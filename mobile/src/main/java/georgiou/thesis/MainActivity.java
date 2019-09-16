@@ -661,29 +661,35 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     public int findGestureWithFFTDataSVM(svm_model model, svm_node[] incoming){
         double[] scores = new double[10];
+        double sum = 0;
 
         System.out.println("First and second elements of the model --->\t"+model.SV[0][0].value+", "+model.SV[0][1].value);
         System.out.println("First and second elements of the INCOMING --->\t"+incoming[0].value+", "+incoming[1].value);
         double result = svm.svm_predict_values(model, incoming, scores);
 
         System.out.println("The result ---> "+result);
-        for(double sc : scores)
+        for(double sc : scores) {
             System.out.println("The SCORES --> "+sc);
+            sum += sc;
+        }
+        sum /= scores.length;
+        System.out.println("The avg of scores ---> "+sum);
 
 
-        if(scores[0] > -1.1 && scores[0] < -1.08){
+
+        if(sum > -0.18 && sum < -0.14){
             return 20;
         }
-        else if(scores[0] > -1.06 && scores[0] < -1.03){
+        else if(sum > -0.26 && sum < -0.22){
             return 40;
         }
-        else if(scores[0] > -0.8 && scores[0] < -0.5){
+        else if(sum > -0.37 && sum < -0.33){
             return 60;
         }
-        else if(scores[0] > -1.08 && scores[0] < -1.06){
+        else if(sum > -0.22 && sum < -0.18){
             return 80;
         }
-        else if(scores[0] > -1.03 && scores[0] < -0.8){
+        else if(sum > -0.33 && sum < -0.26){
             return 100;
         }
         //degree = 2 gamma = 0.02
@@ -826,10 +832,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         model.nSV[4] = 22;
 
         model.param = new svm_parameter();
-        model.param.svm_type    = svm_parameter.NU_SVC;
-        model.param.kernel_type = svm_parameter.POLY;
-        model.param.degree = 2;
-        model.param.gamma       = 0.02;//0.015513;
+        model.param.svm_type    = svm_parameter.C_SVC;
+        model.param.kernel_type = svm_parameter.RBF;
+        model.param.degree = 3;
+        //model.param.svm_type    = svm_parameter.NU_SVC;
+        //model.param.kernel_type = svm_parameter.POLY;
+        //model.param.degree = 2;
+        model.param.gamma       = 0.015625;//0.02;//0.015513;
         model.param.nu          = 0.5;
         model.param.eps = 0.1;
         model.param.cache_size  = 100;
