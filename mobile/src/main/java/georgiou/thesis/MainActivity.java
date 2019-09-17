@@ -86,6 +86,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
     public svm_model model = new svm_model();   //svm_model that holds all information about the SVM parameters
+    public ArrayList<float[]> d3;
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT RAW ACCELEROMETER DATA TO CSV
 
@@ -251,6 +252,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             case R.id.d3:   //under construction
                 currentAlgo.setText(R.string.current_algorithm_d3); //change UI text
                 chosenAlgorithm = "d3";
+
                 break;
 
             case R.id.fft:
@@ -404,6 +406,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         gestureValuesBufferX.add(values[0]);    //add the next X value int the List
         gestureValuesBufferY.add(values[1]);    //add the next Y value int the List
         gestureValuesBufferZ.add(values[2]);    //add the next Z value int the List
+
+        if(d3.size() == 30) {
+
+            d3.clear();
+        }
+        d3.add(values);
 
         recordedCount++;    //increment the recorded count by one
 
@@ -813,6 +821,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 //
 //        return svm.svm_train(problem, param);
 //    }
+
+    //-------------------------------------------------------------------------------------------------//
+
+    //------------------------- Methods Used in Gesture Recognition Using $3 -------------------------//
+
+
 
     //-------------------------------------------------------------------------------------------------//
 
