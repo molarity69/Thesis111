@@ -66,26 +66,26 @@ public class DBManagerUIActivity extends ListActivity {
         // button to delete all gestures
     	final Button mainButton = (Button)findViewById(R.id.deleteGesturesButton);
 mainButton.setOnTouchListener(new View.OnTouchListener()
-    
-    	
-    	{ 
+
+
+    	{
     		public  boolean onTouch(View v, MotionEvent event)
     		{
-    			
-    			
-    			 if (event.getAction() == MotionEvent.ACTION_UP) 
-    					
+
+
+    			 if (event.getAction() == MotionEvent.ACTION_UP)
+
     			{
-    				 // Later add a confirmation dialog here! 
+    				 // Later add a confirmation dialog here!
     				Log.d("OnTouch","Deleting Gestures in Library");
-    				
+
     				glibrary_instance.removeAllGesturesFromLibrary();
     			}
-    			
-    			
-    			
-    			
-    			
+
+
+
+
+
     			return false;
     		}
     	});
@@ -121,6 +121,7 @@ mainButton.setOnTouchListener(new View.OnTouchListener()
     
     public void onRestart()
     {
+    	super.onRestart();
         stateChange = App.STATES.STATE_LIBRARY;
     }
     

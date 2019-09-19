@@ -279,77 +279,77 @@ implements OnClickListener
     	    	/*SensorManager.SENSOR_DELAY_GAME*/);
     	    
     	
-    	final Button mainButton = (Button)findViewById(R.id.Button01);
-    	
-    	
-    	mainButton.setOnTouchListener(new View.OnTouchListener()
-    
-    	
-    	{ 
-    		public  boolean onTouch(View v, MotionEvent event)
-    		{
-    			
-    			if (event.getAction() == MotionEvent.ACTION_DOWN)
-    			{
-    				// button pressed, start recording the trace!
-    				Log.d("OnTouch","Down!");
-    				startRecordingGesture();
-    			}
-    			else if (event.getAction() == MotionEvent.ACTION_UP) 
-    					
-    			{
-    				Log.d("OnTouch","Up!");
-    				stopRecordingGesture();
-    			}
-    			else if (event.getAction() == MotionEvent.ACTION_CANCEL)
-    			{
-    				Log.d("OnTouch","Cancel!");
-    				stopRecordingGesture();
-    			}
-    			
-    			if (VERBOSE)
-    			Log.d("Ontouch", "Touched:"+event.getX()+" "+event.getY()+" "+event.getPressure()+" "+event.getAction());
-    			
-    			
-    			
-    			return false;
-    		}
-    	}
-    	
-    	
-    	
-    	
-    	);
-    	
-    	
-    	
-    	
-    	
-    	
-    	mainButton.setOnClickListener(new View.OnClickListener()
-    	
-    			{
-    				public void onClick(View v)
-    				{
-    					// clicked
-    					//Log.d("onClick", "Clicked");
-    					/*if (mainButton.isFocused())
-    					{
-    						Log.d("onClick", "InFocus");
-    					}
-    					else
-    					{
-    						Log.d("onClic", "NotInFocus");
-    					}*/
-    					
-    				}
-    		
-    		
-    			}
+//    	final Button mainButton = (Button)findViewById(R.id.Button01);
+//
+//
+//    	mainButton.setOnTouchListener(new View.OnTouchListener()
+//
+//
+//    	{
+//    		public  boolean onTouch(View v, MotionEvent event)
+//    		{
+//
+//    			if (event.getAction() == MotionEvent.ACTION_DOWN)
+//    			{
+//    				// button pressed, start recording the trace!
+//    				Log.d("OnTouch","Down!");
+//    				startRecordingGesture();
+//    			}
+//    			else if (event.getAction() == MotionEvent.ACTION_UP)
+//
+//    			{
+//    				Log.d("OnTouch","Up!");
+//    				stopRecordingGesture();
+//    			}
+//    			else if (event.getAction() == MotionEvent.ACTION_CANCEL)
+//    			{
+//    				Log.d("OnTouch","Cancel!");
+//    				stopRecordingGesture();
+//    			}
+//
+//    			if (VERBOSE)
+//    			Log.d("Ontouch", "Touched:"+event.getX()+" "+event.getY()+" "+event.getPressure()+" "+event.getAction());
+//
+//
+//
+//    			return false;
+//    		}
+//    	}
+//
+//
+//
+//
+//    	);
+
     	
     	
     	
-    	);
+    	
+    	
+//    	mainButton.setOnClickListener(new View.OnClickListener()
+//
+//    			{
+//    				public void onClick(View v)
+//    				{
+//    					// clicked
+//    					//Log.d("onClick", "Clicked");
+//    					/*if (mainButton.isFocused())
+//    					{
+//    						Log.d("onClick", "InFocus");
+//    					}
+//    					else
+//    					{
+//    						Log.d("onClic", "NotInFocus");
+//    					}*/
+//
+//    				}
+//
+//
+//    			}
+//
+//
+//
+//    	);
     	
     	
     	

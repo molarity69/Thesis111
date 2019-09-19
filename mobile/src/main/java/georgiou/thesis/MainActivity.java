@@ -7,8 +7,10 @@ import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -48,7 +50,9 @@ import libsvm.svm_model;
 import libsvm.svm_node;
 import libsvm.svm_parameter;
 
-public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener {
+import com.myproject.gesturerec3d;
+
+public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener, PopupMenu.OnMenuItemClickListener {
 
     private final static String TAG = "MobileMainActivity"; //Debug TAG
 
@@ -86,7 +90,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
     public svm_model model = new svm_model();   //svm_model that holds all information about the SVM parameters
-    public ArrayList<float[]> d3;
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT RAW ACCELEROMETER DATA TO CSV
 
@@ -230,6 +233,21 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         newGesture.setEnabled(doIt);
     }
 
+    @Override
+    public boolean onMenuItemClick(MenuItem item){
+        switch (item.getItemId()){
+            case R.id.train1:
+
+                Toast.makeText(this, "Recording saved as Training Data for $3", Toast.LENGTH_LONG).show();
+                return true;
+            case R.id.recognize:
+
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /** onClick Override handles each button click for choosing an algorithm or recording */
     @Override
     public void onClick(View v) {
@@ -252,7 +270,19 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             case R.id.d3:   //under construction
                 currentAlgo.setText(R.string.current_algorithm_d3); //change UI text
                 chosenAlgorithm = "d3";
-
+                enableButtons(false);   //disable buttons when recognising
+                if(!gestureGeneralBuffer.isEmpty()) {   //if there is a recorded gesture
+                    PopupMenu popupMenu = new PopupMenu(this, v);
+                    popupMenu.setOnMenuItemClickListener(this);
+                    popupMenu.inflate(R.menu.popup_menu);
+                    popupMenu.show();
+                    gestureGeneralBuffer.clear();   //make space for the next incoming gesture
+                }
+                else{
+                    //this pops up when the button is pressed while there aren't any data recorded
+                    Toast.makeText(this, "Record something to process!",Toast.LENGTH_LONG).show();
+                }
+                enableButtons(true);    //re-enable the buttons after being done
                 break;
 
             case R.id.fft:
@@ -302,7 +332,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
     }
 
-    /** onStop and onDestroy unregister the listener and register again onResume */
+    /* onStop and onDestroy unregister the listener and register again onResume */
     @Override
     public void onResume(){
         Log.d(TAG, "onResume");
@@ -406,12 +436,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         gestureValuesBufferX.add(values[0]);    //add the next X value int the List
         gestureValuesBufferY.add(values[1]);    //add the next Y value int the List
         gestureValuesBufferZ.add(values[2]);    //add the next Z value int the List
-
-        if(d3.size() == 30) {
-
-            d3.clear();
-        }
-        d3.add(values);
 
         recordedCount++;    //increment the recorded count by one
 
@@ -824,15 +848,15 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     //-------------------------------------------------------------------------------------------------//
 
-    //------------------------- Methods Used in Gesture Recognition Using $3 -------------------------//
+    //------------------------- Methods Used in Gesture Recognition Using $3 --------------------------//
 
 
 
     //-------------------------------------------------------------------------------------------------//
 
-    //------------------------------------ CSV Tools ------------------------------------//
+    //------------------------------------------- CSV Tools -------------------------------------------//
 
-    /** initializeFromCSV method adds all the raw data from the TransposedData.csv file in an array for further use*/
+    /** initializeFromCSV method adds all the raw data from the TransposedData.csv file in an array for further use */
     public void initializeFromCSV(){
 
         try{
