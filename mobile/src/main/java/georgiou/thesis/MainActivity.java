@@ -238,10 +238,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         switch (item.getItemId()){
             case R.id.train1:
 
-                Toast.makeText(this, "Recording saved as Training Data for $3", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Training Under Construction", Toast.LENGTH_LONG).show();
                 return true;
             case R.id.recognize:
 
+                Toast.makeText(this, "Recognition Under Construction", Toast.LENGTH_LONG).show();
                 return true;
             default:
                 return false;
