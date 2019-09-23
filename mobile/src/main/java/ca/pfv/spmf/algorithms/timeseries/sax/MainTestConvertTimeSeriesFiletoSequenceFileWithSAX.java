@@ -20,32 +20,63 @@ import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries
 public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 
 	public static void main(String [] arg) throws IOException{
-		
+
+		if(arg[0].equals("global")){
+			// the input file
+			String input = MainActivity.baseDir + File.separator + "saxInputGlobal.txt";
+			// Parameters of the algorithm
+			String separator = ",";
+
+			// Applying the  algorithm
+			AlgoTimeSeriesReader reader = new AlgoTimeSeriesReader();
+			List<TimeSeries> timeSeries = reader.runAlgorithm(input, separator);
+			reader.printStats();
+
+			// the output file
+			String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
+
+			// Parameters of the algorithm
+			int numberOfSegments = constant;
+			int numberOfSymbols = constantSym;
+
+			// Set this variable to true to not apply PAA before SAX
+			boolean deactivatePAA = false;
+
+			// Applying the  algorithm
+			AlgoConvertTimeSeriesFileToSequencesWithSAX algorithm = new AlgoConvertTimeSeriesFileToSequencesWithSAX();
+			algorithm.runAlgorithm(timeSeries, output, numberOfSegments, numberOfSymbols, deactivatePAA);
+			algorithm.printStats();
+		}
+		else{
+			// the input file
+			String input = MainActivity.baseDir + File.separator + "saxInput.txt";
+			// Parameters of the algorithm
+			String separator = ",";
+
+			// Applying the  algorithm
+			AlgoTimeSeriesReader reader = new AlgoTimeSeriesReader();
+			List<TimeSeries> timeSeries = reader.runAlgorithm(input, separator);
+			reader.printStats();
+
+			// the output file
+			String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
+
+			// Parameters of the algorithm
+			int numberOfSegments = constant;
+			int numberOfSymbols = constantSym;
+
+			// Set this variable to true to not apply PAA before SAX
+			boolean deactivatePAA = false;
+
+			// Applying the  algorithm
+			AlgoConvertTimeSeriesFileToSequencesWithSAX algorithm = new AlgoConvertTimeSeriesFileToSequencesWithSAX();
+			algorithm.runAlgorithm(timeSeries, output, numberOfSegments, numberOfSymbols, deactivatePAA);
+			algorithm.printStats();
+		}
 		// the input file
-		String input = MainActivity.baseDir + File.separator + "saxInput.txt";
+		//String input = MainActivity.baseDir + File.separator + "saxInput.txt";
 
-		// Parameters of the algorithm
-		String separator = ",";
-		
-		// Applying the  algorithm
-		AlgoTimeSeriesReader reader = new AlgoTimeSeriesReader();
-		List<TimeSeries> timeSeries = reader.runAlgorithm(input, separator);
-		reader.printStats();
-		
-		// the output file
-		String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
 
-		// Parameters of the algorithm
-		int numberOfSegments = constant;
-		int numberOfSymbols = constantSym;
-		
-		// Set this variable to true to not apply PAA before SAX
-		boolean deactivatePAA = false;
-		
-		// Applying the  algorithm
-		AlgoConvertTimeSeriesFileToSequencesWithSAX algorithm = new AlgoConvertTimeSeriesFileToSequencesWithSAX();
-		algorithm.runAlgorithm(timeSeries, output, numberOfSegments, numberOfSymbols, deactivatePAA);
-		algorithm.printStats();
 	}
 	
 	public static String fileToPath(String filename) throws UnsupportedEncodingException{
