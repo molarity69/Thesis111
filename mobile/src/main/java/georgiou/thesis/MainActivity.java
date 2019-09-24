@@ -3,6 +3,7 @@ package georgiou.thesis;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -87,6 +88,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
     private float[][] globalDataSet;
+    private boolean changed = false;
+    private int newInput = 0;
+    private int newInputCheck = 0;
     private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
     int[][] txtVals;// = new int[120][constant];   //array that holds dataset values after being transformed with sax
     int hhCount = 0, huCount = 0, hudCount = 0, hh2Count = 0, hu2Count = 0;
@@ -158,7 +162,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////EXPORT GLOBAL BUFFER DATA TO TXT
 
-    String fileNameSAXGlobal = "saxInput.txt";
+    String fileNameSAXGlobal = "saxInputGlobal.txt";
     String filePathSAXGlobal = baseDir + File.separator + fileNameSAXGlobal;
     File fSAXGlobal = new File(filePathSAXGlobal);
 
@@ -232,7 +236,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         //method for loading raw data from csv for transforming them into a new data set (used during development)
-        initializeFromCSV(false);
+        initializeFromCSV(false, filePathRead);
         datasetFFT();
         //method for exporting raw data to txt for transforming them into a new data set with SAX (used during development)
         //writeSAXtoTXT();
@@ -269,13 +273,17 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 Toast.makeText(this, "Recognition Under Construction", Toast.LENGTH_LONG).show();
                 return true;
             case R.id.personalSet:
-                initializeFromCSV(false);
-                writeSAXtoTXT(dataSet, filePathSAX, fSAX);
+                if(changed) {
+                    initializeFromCSV(false, filePathRead);
+                    writeSAXtoTXT(dataSet, fSAX);
+                    try{
+                        String arg[] = new String[]{""};
+                        //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
+                        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
+                        initializeFromSAXtxt(false); //method that loads dataset in SAX form into an array for comparing with input data
+                    }catch (IOException e){e.printStackTrace();}
+                }
                 try{
-                    String arg[] = new String[]{""};
-                    //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
-                    MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
-                    initializeFromSAXtxt(false); //method that loads dataset in SAX form into an array for comparing with input data
                     MainTestSAX_SingleTimeSeries.main(bufferSAX()); //spmf library method that transforms the incoming data with SAX
                     int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();  //custom method placed in spmf library to return the transformed timeseries data
                     findGestureWithSAXDataEuclidean(liveSAX);   //run the SAX recognition algorithm
@@ -285,13 +293,21 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 }
                 return true;
             case R.id.globalSet:
-                initializeFromCSV(true);
-                writeSAXtoTXT(globalDataSet, filePathSAXGlobal, fSAXGlobal);
+                if(!changed || newInput > newInputCheck){
+                    if(newInput > newInputCheck){
+                        newInputCheck = newInput;
+                    }
+                    initializeFromCSV(true, filePathWrite);
+                    writeSAXtoTXT(globalDataSet, fSAXGlobal);
+                    try{
+                        String arg[] = new String[]{"global"};
+                        //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
+                        MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
+                        initializeFromSAXtxt(true); //method that loads dataset in SAX form into an array for comparing with input data
+                    }catch (IOException e){e.printStackTrace();}
+                }
+
                 try{
-                    String arg[] = new String[]{"global"};
-                    //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
-                    MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
-                    initializeFromSAXtxt(true); //method that loads dataset in SAX form into an array for comparing with input data
                     MainTestSAX_SingleTimeSeries.main(bufferSAX()); //spmf library method that transforms the incoming data with SAX
                     int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();  //custom method placed in spmf library to return the transformed timeseries data
                     findGestureWithSAXDataEuclidean(liveSAX);   //run the SAX recognition algorithm
@@ -364,7 +380,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 if(!gestureGeneralBuffer.isEmpty()) {   //if there is a recorded gesture
                     PopupMenu popupMenu = new PopupMenu(this, v);
                     popupMenu.setOnMenuItemClickListener(this);
-                    popupMenu.inflate(R.menu.popup_menu);
+                    popupMenu.inflate(R.menu.popup_menu_sax);
                     popupMenu.show();
 //                    try {
 //
@@ -382,6 +398,39 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             case R.id.trainButton:
                 currentAlgo.setText(R.string.current_algorithm_none);   //change UI text
                 chosenAlgorithm = "train";  //this tag is important so that the app knows when to export things to files
+                if(!gestureGeneralBuffer.isEmpty()){
+                    promptForResult("Input", "Please name the Gesture you performed.", new DialogInputInterface(){
+                        EditText input;
+                        public View onBuildDialog() {
+                            // procedure to build the dialog view
+                            input = new EditText(MainActivity.this);
+                            // cast the editText as a view
+                            input.setInputType(InputType.TYPE_CLASS_TEXT);
+                            // return the view to the dialog builder
+                            return (View) input;
+                        }
+                        public void onCancel() {
+                            // user has canceled the dialog by hitting cancel
+                            gestureGeneralBuffer.clear();
+                            Toast.makeText(MainActivity.this, "Operation Canceled!\nRecording discarded", Toast.LENGTH_LONG).show();
+                        }
+                        public void onResult(View v) {
+                            // get the value from the dialog
+                            String value = input.getText().toString();
+                            // check if the user entered one of the correct gesture classes
+                            if(value.equals("hh") || value.equals("hu") || value.equals("hud") || value.equals("hh2") || value.equals("hu2")){
+                                //calling the export method with 3 float cells having the value of -30 to distinguish where every new gesture ends in the csv(used during development)
+                                exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePathWrite, fGlobalWrite, true, value);
+                                newInput++;
+                                Toast.makeText(MainActivity.this, "Recording exported successfully", Toast.LENGTH_LONG).show();
+                            }
+                            else{
+                                Toast.makeText(MainActivity.this, "Invalid Input!\nRecording wasn't exported", Toast.LENGTH_LONG).show();
+                            }
+                        }
+                    });
+
+                }
                 break;
 
             default:
@@ -441,16 +490,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         //this if-statement checks when the incoming values number reaches 30
                         //it's writen this way so that the logthis function can update the total recorded number on the UI
                         if((recordedCount - gesturesComplete) % 31 == 0){
-                            if(chosenAlgorithm.equals("train")){    //if the train button is pressed
-                                //calling the export method with 3 float cells having the value of -30 to distinguish where every new gesture ends in the csv(used during development)
-                                exportDataToCSV(new float[]{-30.00f, -30.00f, -30.00f}, filePathWrite, fGlobalWrite, true);
-                                //inform the user of what happened to the recording
-                                //Toast.makeText(this, "Recording Exported as Training Data!", Toast.LENGTH_LONG).show();
-                            }
-                            else {
-                                //inform the user of what happened to the recording
-                                Toast.makeText(this, "Recording completed", Toast.LENGTH_LONG).show();
-                            }
+                            Toast.makeText(this, "Recording completed", Toast.LENGTH_LONG).show();
                             start = false;  //stop recording the incoming data in onDataChanged method
                             recordedCount++;    //increment recordings by one in order to make the above if-statement work
                             gesturesComplete++; //increment the gestures completed by one to keep track
@@ -559,6 +599,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         //array that stores the difference between two SAX symbols for every recording multiplied by the deviation of each symbol from one another
         double[][] diffDev = new double[txtVals.length][txtVals[0].length];
         double[] diffSum = new double[txtVals.length];  //array that stores the sum of deviations from every recording in the data set
+        System.out.println("DiffSum Length -------> \t"+diffSum.length);
         //the distance between SAX symbols (its value is 0.16 because for this example we use 15 symbols for each time series transformation
         // and it can be changed accordingly by consulting the file ca.pfv.spmf.algorithms.timeseries.sax.AlgoSAX)
         double dev = 0.16;
@@ -579,7 +620,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 diffSum[i] += diffDev[i][j];    //add the deviations of each cell
             }
             min = (diffSum[i] < min) ? diffSum[i] : min;    //for every row, if the sum of the deviations is less than the previous one make min the current one
-            if(min == 0) { findGestureClass(i,0); break; }    //if there is no deviations in a row its a definite match so stop searching and call the classification method with the current index
+            if(min == 0) { findGestureClass(i, diffSum.length); break; }    //if there is no deviations in a row its a definite match so stop searching and call the classification method with the current index
         }
         Log.e(TAG, "recognitionAlgo: MINIMUM VALUE -->\t" + min);
         int index = findIndex(diffSum,min); //call the method that finds the index where the minimum deviation was detected
@@ -637,74 +678,89 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     /** writeSAXtoTXT method was used during development for exporting raw data to txt for transforming them into a new data set with SAX */
-    public void writeSAXtoTXT(float[][] dataSet, String fp, File f){
+    public void writeSAXtoTXT(float[][] dataSet, File f){
 
         try {
-            BufferedWriter TXTwriter;
-            if(f.exists()&&!f.isDirectory()) {    //if the file already exists
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Attention!");
-                builder.setMessage("Make a new Training Set or append to the existing one?");
-                builder.setPositiveButton("Append", (dialogInterface, i) -> {
-                    try{
-                        BufferedWriter TXTwriter1;
-                        FileWriter mFileWriter = new FileWriter(fp, true);  //append to it
-                        TXTwriter1 = new BufferedWriter(mFileWriter);    //initialize the writer
-                        for(float[] valsRow : dataSet){ //for all the dataset array
-                            for(float valsCol : valsRow) {
-                                TXTwriter1.append(Float.toString(valsCol));  //append every value to the text file
-                                TXTwriter1.append(",");  //separate it with coma
-                            }
-                            TXTwriter1.newLine();    //change line
-                        }
-                        TXTwriter1.flush();  //flush the writer
-                        TXTwriter1.close();  //close the writer
-                    }catch (IOException e){
-                        e.printStackTrace();
-                    }
-                    Toast.makeText(MainActivity.this, "Training Set appended", Toast.LENGTH_LONG).show();
-                });
-
-                builder.setNegativeButton("Make New", (dialogInterface, i) -> {
-                    try{
-                        BufferedWriter TXTwriter12;
-                        TXTwriter12 = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
-                        for(float[] valsRow : dataSet){ //for all the dataset array
-                            for(float valsCol : valsRow) {
-                                TXTwriter12.append(Float.toString(valsCol));  //append every value to the text file
-                                TXTwriter12.append(",");  //separate it with coma
-                            }
-                            TXTwriter12.newLine();    //change line
-                        }
-                        TXTwriter12.flush();  //flush the writer
-                        TXTwriter12.close();  //close the writer
-                    }catch (IOException e){
-                        e.printStackTrace();
-                    }
-                    Toast.makeText(MainActivity.this, "Training Set saved in an new file", Toast.LENGTH_LONG).show();
-                });
-
-                builder.setNeutralButton("Cancel", (dialogInterface, i) -> Toast.makeText(MainActivity.this, "Operation Canceled", Toast.LENGTH_LONG).show());
-
-                builder.setCancelable(false);
-                builder.show();
-            }
-            else {
-                TXTwriter = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
-                for(float[] valsRow : dataSet){ //for all the dataset array
-                    for(float valsCol : valsRow) {
-                        TXTwriter.append(Float.toString(valsCol));  //append every value to the text file
-                        TXTwriter.append(",");  //separate it with coma
-                    }
-                    TXTwriter.newLine();    //change line
+            BufferedWriter TXTwriter = new BufferedWriter(new FileWriter(f));    //initialize writer
+            for(float[] valsRow : dataSet){ //for all the dataset array
+                for(float valsCol : valsRow) {
+                    TXTwriter.append(Float.toString(valsCol));  //append every value to the text file
+                    TXTwriter.append(",");  //separate it with coma
                 }
-                TXTwriter.flush();  //flush the writer
-                TXTwriter.close();  //close the writer
+                TXTwriter.newLine();    //change line
             }
-
+            TXTwriter.flush();  //flush the writer
+            TXTwriter.close();  //close the writer
         }catch (Exception e){
             e.printStackTrace();    //exception handling
         }
+
+//        try {
+//            BufferedWriter TXTwriter;
+//            if(f.exists()&&!f.isDirectory()) {    //if the file already exists
+//                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+//                builder.setTitle("Attention!");
+//                builder.setMessage("Make a new Training Set or append to the existing one?");
+//                builder.setPositiveButton("Append", (dialogInterface, i) -> {
+//                    try{
+//                        BufferedWriter TXTwriter1;
+//                        FileWriter mFileWriter = new FileWriter(fp, true);  //append to it
+//                        TXTwriter1 = new BufferedWriter(mFileWriter);    //initialize the writer
+//                        for(float[] valsRow : dataSet){ //for all the dataset array
+//                            for(float valsCol : valsRow) {
+//                                TXTwriter1.append(Float.toString(valsCol));  //append every value to the text file
+//                                TXTwriter1.append(",");  //separate it with coma
+//                            }
+//                            TXTwriter1.newLine();    //change line
+//                        }
+//                        TXTwriter1.flush();  //flush the writer
+//                        TXTwriter1.close();  //close the writer
+//                    }catch (IOException e){
+//                        e.printStackTrace();
+//                    }
+//                    Toast.makeText(MainActivity.this, "Training Set appended", Toast.LENGTH_LONG).show();
+//                });
+//
+//                builder.setNegativeButton("Make New", (dialogInterface, i) -> {
+//                    try{
+//                        BufferedWriter TXTwriter12;
+//                        TXTwriter12 = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
+//                        for(float[] valsRow : dataSet){ //for all the dataset array
+//                            for(float valsCol : valsRow) {
+//                                TXTwriter12.append(Float.toString(valsCol));  //append every value to the text file
+//                                TXTwriter12.append(",");  //separate it with coma
+//                            }
+//                            TXTwriter12.newLine();    //change line
+//                        }
+//                        TXTwriter12.flush();  //flush the writer
+//                        TXTwriter12.close();  //close the writer
+//                    }catch (IOException e){
+//                        e.printStackTrace();
+//                    }
+//                    Toast.makeText(MainActivity.this, "Training Set saved in an new file", Toast.LENGTH_LONG).show();
+//                });
+//
+//                builder.setNeutralButton("Cancel", (dialogInterface, i) -> Toast.makeText(MainActivity.this, "Operation Canceled", Toast.LENGTH_LONG).show());
+//
+//                builder.setCancelable(false);
+//                builder.show();
+//            }
+//            else {
+//                TXTwriter = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
+//                for(float[] valsRow : dataSet){ //for all the dataset array
+//                    for(float valsCol : valsRow) {
+//                        TXTwriter.append(Float.toString(valsCol));  //append every value to the text file
+//                        TXTwriter.append(",");  //separate it with coma
+//                    }
+//                    TXTwriter.newLine();    //change line
+//                }
+//                TXTwriter.flush();  //flush the writer
+//                TXTwriter.close();  //close the writer
+//            }
+//
+//        }catch (Exception e){
+//            e.printStackTrace();    //exception handling
+//        }
     }
 
     //-------------------------------------------------------------------------------------------------//
@@ -768,8 +824,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 fftDataset[i][k] = row[k];
             }
         }
-        exportDataToCSV(new float[]{1},filePathFFT, fFFT, false);  //export complex numbers to CSV
-        exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat, false); //export absolute values of complex numbers to CSV
+        exportDataToCSV(new float[]{1},filePathFFT, fFFT, false, "");  //export complex numbers to CSV
+        exportDataToCSV(new float[]{},filePathFFTfloat, fFFTfloat, false, ""); //export absolute values of complex numbers to CSV
     }
 
     /** findGestureWithFFTDataSVM method calls the svm_predict_values method and returns
@@ -983,13 +1039,14 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     //------------------------------------------- CSV Tools -------------------------------------------//
 
     /** initializeFromCSV method adds all the raw data from the TransposedData.csv file in an array for further use */
-    public void initializeFromCSV(boolean global){
+    public void initializeFromCSV(boolean global, String filepath){
 
         try{
-            FileReader read = new FileReader(filePathRead); //initialize file reader
+            FileReader read = new FileReader(filepath); //initialize file reader
             reader = new CSVReader(read);
             String[] lines; //lines in file
             if(!global){
+                changed = false;
                 int i = 0,j = 0;
                 String[] linesOut = reader.readNext();  //the first line is the header for X, Y and Z
                 while((lines = reader.readNext()) != null){
@@ -1004,6 +1061,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 }
             }
             else{
+                changed = true;
+                hhCount = 0;
+                huCount = 0;
+                hudCount = 0;
+                hh2Count = 0;
+                hu2Count = 0;
                 List<float[]> input = new ArrayList<float[]>();
                 float[] lineBuffer = new float[91];
                 int j = 0;
@@ -1051,6 +1114,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 for(int i = 0; i < globalDataSet.length; i++){
                     for(int k = 0; k < globalDataSet[0].length; k++){
                         globalDataSet[i][k] = input.get(i)[k];
+                        System.out.println(globalDataSet[i][k]);
                     }
                 }
             }
@@ -1065,7 +1129,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
      * @param fp The path to the file
      * @param FL  The file name*/
 
-    public void exportDataToCSV(float[] accData, String fp, File FL, boolean transposed){
+    public void exportDataToCSV(float[] accData, String fp, File FL, boolean transposed, String value){
 
         try{
         if(FL.exists()&&!FL.isDirectory()) {    //if the file already exists
@@ -1087,41 +1151,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             }
             else{
                 String[] val = new String[gestureGeneralBuffer.size()+1];
-                final String[] userInput = {""};
                 for(int i = 0; i < val.length-1; i++){
                     val[i] = Float.toString(gestureGeneralBuffer.get(i));
                 }
-
-                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-                builder.setTitle("Name the Gesture you performed");
-
-                // Set up the input
-                final EditText input = new EditText(this);
-                // Specify the type of input expected; this, for example, sets the input as a password, and will mask the text
-                input.setInputType(InputType.TYPE_CLASS_TEXT);
-                builder.setView(input);
-
-                // Set up the buttons
-                builder.setPositiveButton("OK", (dialog, which) -> {
-                    userInput[0] = input.getText().toString();
-                    if(userInput[0].equals("hh") || userInput[0].equals("hu") || userInput[0].equals("hud") || userInput[0].equals("hh2") || userInput[0].equals("hu2")){
-                        val[gestureGeneralBuffer.size()] = userInput[0];
-                        writer.writeNext(val, false);
-                        Toast.makeText(MainActivity.this, "Recording exported successfully", Toast.LENGTH_LONG).show();
-                    }
-                    else{
-                        gestureGeneralBuffer.clear();
-                        Toast.makeText(MainActivity.this, "Recording discarded", Toast.LENGTH_LONG).show();
-                    }
-
-                });
-                builder.setNegativeButton("Cancel", (dialog, which) -> {
-                    dialog.cancel();
-                    gestureGeneralBuffer.clear();
-                    Toast.makeText(MainActivity.this, "Recording discarded", Toast.LENGTH_LONG).show();
-                });
-
-                builder.show();
+                val[gestureGeneralBuffer.size()] = value;
+                writer.writeNext(val,false);
 
             }
 
@@ -1151,6 +1185,46 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         } catch (IOException e) {
             e.printStackTrace();    //handle exceptions
         }
+    }
+
+    interface DialogInputInterface {
+        // onBuildDialog() is called when the dialog builder is ready to accept a view to insert
+        // into the dialog
+        View onBuildDialog();
+        // onCancel() is called when the user clicks on 'Cancel'
+        void onCancel();
+        // onResult(View v) is called when the user clicks on 'Ok'
+        void onResult(View v);
+    }
+
+    void promptForResult(String dlgTitle, String dlgMessage, final DialogInputInterface dlg) {
+        // replace "MyClass.this" with a Context object. If inserting into a class extending Activity,
+        // using just "this" is perfectly ok.
+        AlertDialog.Builder alert = new AlertDialog.Builder(MainActivity.this);
+        alert.setTitle(dlgTitle);
+        alert.setMessage(dlgMessage);
+        // build the dialog
+        final View v = dlg.onBuildDialog();
+        // put the view obtained from the interface into the dialog
+        if (v != null) { alert.setView(v);}
+        // procedure for when the ok button is clicked.
+        alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int whichButton) {
+                // ** HERE IS WHERE THE MAGIC HAPPENS! **
+                dlg.onResult(v);
+                dialog.dismiss();
+                return;
+            }
+        });
+
+        alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                dlg.onCancel();
+                dialog.dismiss();
+                return;
+            }
+        });
+        alert.show();
     }
 
     //-------------------------------------------------------------------------------------------------//
