@@ -236,6 +236,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
 
         //method for loading raw data from csv for transforming them into a new data set (used during development)
+        //initializeFromCSV(true, filePathWrite);
         initializeFromCSV(false, filePathRead);
         datasetFFT();
         //method for exporting raw data to txt for transforming them into a new data set with SAX (used during development)
@@ -1067,37 +1068,63 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 hudCount = 0;
                 hh2Count = 0;
                 hu2Count = 0;
+                //List<List<Float>> input = new ArrayList<List<Float>>();
                 List<float[]> input = new ArrayList<float[]>();
-                float[] lineBuffer = new float[91];
                 int j = 0;
                 while((lines = reader.readNext()) != null){
+                    float[] lineBuffer = new float[91];
+                    //List<Float> lineBuffer = new ArrayList<Float>(91);
                     for(String current : lines){
                         if(j==90){
                             switch (current) {
                                 case "hh":
+                                    //lineBuffer.add(1f);
                                     lineBuffer[j] = 1;
-                                    input.add(0,lineBuffer);
+                                    input.add(0, lineBuffer);
+//                                    System.out.println("HH");
+//                                    System.out.println(Arrays.toString(input.get(0)));
                                     hhCount++;
+                                    //System.out.println("hhCount --->\t" + hhCount);
                                     break;
                                 case "hu":
+                                    //lineBuffer.add(2f);
                                     lineBuffer[j] = 2;
                                     input.add(hhCount,lineBuffer);
+//                                    System.out.println("lineBufferIndex --->\t" + hhCount);
+//                                    System.out.println("HU");
+//                                    System.out.println(Arrays.toString(input.get(hhCount)));
                                     huCount++;
+                                    //System.out.println("huCount --->\t" + huCount);
                                     break;
                                 case "hud":
+                                    //lineBuffer.add(3f);
                                     lineBuffer[j] = 3;
                                     input.add(hhCount+huCount,lineBuffer);
+//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount));
+//                                    System.out.println("HUD");
+//                                    System.out.println(Arrays.toString(input.get(hhCount+huCount)));
                                     hudCount++;
+                                    //System.out.println("hudCount --->\t" + hudCount);
                                     break;
                                 case "hh2":
+                                    //lineBuffer.add(4f);
                                     lineBuffer[j] = 4;
                                     input.add(hhCount+huCount+hudCount,lineBuffer);
+//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount+hudCount));
+//                                    System.out.println("HH2");
+//                                    System.out.println(Arrays.toString(lineBuffer));
                                     hh2Count++;
+                                    //System.out.println("hh2Count --->\t" + hh2Count);
                                     break;
                                 case "hu2":
+                                    //lineBuffer.add(5f);
                                     lineBuffer[j] = 5;
                                     input.add(hhCount+huCount+hudCount+hh2Count,lineBuffer);
+//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount+hudCount+hh2Count));
+//                                    System.out.println("HU2");
+//                                    System.out.println(Arrays.toString(lineBuffer));
                                     hu2Count++;
+                                    //System.out.println("hu2Count --->\t" + hu2Count);
                                     break;
                                 default:
                                     break;
@@ -1105,23 +1132,41 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                             break;
                         }
                         //globalDataSet[i][j] = Float.parseFloat(current);  //parse every value from the file into the array
-                        lineBuffer[j] = Float.parseFloat(current);
+                        lineBuffer[j] = Float.parseFloat(current);//lineBuffer.add(Float.parseFloat(current));
                         j++;
                     }
                     j = 0;
+                    //System.out.println("Outer Array Size (Recordings)---> \t"+ input.size()+ "\nInner Array Size (Values)---> \t" + input.get(0).length);
                 }
+//                System.out.println("Cell 1");
+//                System.out.println(Arrays.toString(input.get(0).toArray()));
+//                System.out.println("Cell 2");
+//                System.out.println(Arrays.toString(input.get(1).toArray()));
+//                System.out.println("Cell 3");
+//                System.out.println(Arrays.toString(input.get(2).toArray()));
+//                System.out.println("Cell 4");
+//                System.out.println(Arrays.toString(input.get(3).toArray()));
+//                System.out.println("Cell 5");
+//                System.out.println(Arrays.toString(input.get(4).toArray()));
+//                System.out.println("Cell 6");
+//                System.out.println(Arrays.toString(input.get(5).toArray()));
+//                System.out.println("Cell 7");
+//                System.out.println(Arrays.toString(input.get(6).toArray()));
+
+                //globalDataSet = new float[input.size()][input.get(0).size()];
                 globalDataSet = new float[input.size()][input.get(0).length];
                 for(int i = 0; i < globalDataSet.length; i++){
                     for(int k = 0; k < globalDataSet[0].length; k++){
-                        globalDataSet[i][k] = input.get(i)[k];
-                        System.out.println(globalDataSet[i][k]);
+                        globalDataSet[i][k] = input.get(i)[k];//.get(k);
                     }
+                    //System.out.println(Arrays.toString(globalDataSet[i]));
                 }
             }
-
+            reader.close();
         }catch(Exception e){
             e.printStackTrace();    //handle exceptions
         }
+
     }
 
     /** exportDataToCSV method writes training data, complex data after FFT and absolute values of the FFT into a CSV file
