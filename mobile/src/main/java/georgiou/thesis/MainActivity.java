@@ -489,7 +489,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     values = dataMapItem.getDataMap().getFloatArray("SensorValues");    //get the contents into the array
                     if(values!=null && start) { //if the array has data and the button to start recording has been pressed
                         //this if-statement checks when the incoming values number reaches 30
-                        //it's writen this way so that the logthis function can update the total recorded number on the UI
+                        //it's written this way so that the logthis function can update the total recorded number on the UI
+                        //and knowing when to stop recording
                         if((recordedCount - gesturesComplete) % 31 == 0){
                             Toast.makeText(this, "Recording completed", Toast.LENGTH_LONG).show();
                             start = false;  //stop recording the incoming data in onDataChanged method
@@ -497,11 +498,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                             gesturesComplete++; //increment the gestures completed by one to keep track
                         }
                         else {  //while recording each incoming data packet
-                            dataBuffer();   //call the method that stores the incoming data in the arraylist
+                            dataBuffer();   //call the method that stores the incoming data in the arrayList
                             logthis();  //update the UI
-//                            if(chosenAlgorithm.equals("train")){    //if train button is pressed
-//                                exportDataToCSV(values,filePath,f, false); //export the values to csv file
-//                            }
                         }
                     }
                     else{
@@ -511,7 +509,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                             saxButton.setEnabled(true);
                             fftButton.setEnabled(true);
                             trainButton.setEnabled(true);
-                            //enable the RECORD A GESTURE button when the received data only when received data has reached 100
+                            //enable the RECORD A GESTURE button only when received data has reached 100
                             //it's necessary in order to establish a stable bluetooth connection after the app has started
                             if(receivedCount > 100) newGesture.setEnabled(true);
                         }

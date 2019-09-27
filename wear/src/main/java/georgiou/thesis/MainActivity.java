@@ -23,13 +23,8 @@ public class MainActivity extends WearableActivity implements SensorEventListene
     private TextView mTextView;
     public String status;
     String datapath = "/data_path";
-    //int i = 0;
-
     private SensorManager sensorManager;
     Sensor accelerometer;
-    //private float[] senVal = new float[3];
-
-    //private volatile boolean stopThread = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,50 +37,48 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         sensorManager.registerListener(MainActivity.this, accelerometer, 200000);
 
-        //startThread();
         // Enables Always-on
         setAmbientEnabled();
     }
 
     @Override
-    public void onAccuracyChanged(Sensor sensor, int i){}
-
-    @Override
     public void onSensorChanged(SensorEvent sensorEvent){
 
-        //senVal[0] = sensorEvent.values[0];
-        //senVal[1] = sensorEvent.values[1];
-        //senVal[2] = sensorEvent.values[2];
-
-        sendData(sensorEvent.values /*, System.currentTimeMillis()*/ );
-        //sensorEvent.timestamp
-
+        sendData(sensorEvent.values);
     }
-
-    /*
-    public void startThread() {
-        stopThread = false;
-        SensorsRunnable runnable = new SensorsRunnable();
-        new Thread(runnable).start();
-
-    }
-
-    public void stopThread() {
-        stopThread = true;
-    }
-
-
-    class SensorsRunnable implements Runnable {
-
+    public void logthis(){ runOnUiThread(new Runnable() {
         @Override
         public void run() {
-
-            while(!stopThread) {
-                sendData(senVal);
-            }
+            mTextView.setText(status);
         }
+    });    }
+
+    private void sendData(float[] senVal){
+
+        PutDataMapRequest dataMap = PutDataMapRequest.create(datapath);
+        dataMap.getDataMap().putFloatArray("SensorValues", senVal);
+        PutDataRequest request = dataMap.asPutDataRequest();
+        request.setUrgent();
+        Task<DataItem> dataItemTask = Wearable.getDataClient(this).putDataItem(request);
+        dataItemTask
+                .addOnSuccessListener(new OnSuccessListener<DataItem>() {
+                    @Override
+                    public void onSuccess(DataItem dataItem) {
+                        status = "Success";
+                        logthis();
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(Exception e) {
+                        status = "Failure";
+                        logthis();
+                    }
+                });
     }
-*/
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int i){}
 
     @Override
     public void onResume() {
@@ -95,71 +88,22 @@ public class MainActivity extends WearableActivity implements SensorEventListene
         super.onResume();
     }
 
-
-    //remove listener
     @Override
     public void onPause() {
         super.onPause();
     }
 
+    //remove listener
     @Override
     public void onStop(){
-        //stopThread();
         sensorManager.unregisterListener(MainActivity.this, accelerometer);
         super.onStop();
     }
 
+    //remove listener
     @Override
     public void onDestroy(){
-        //stopThread();
         sensorManager.unregisterListener(MainActivity.this, accelerometer);
         super.onDestroy();
-    }
-
-    public void logthis(){
-
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                mTextView.setText(status);
-            }
-        });    }
-
-    private void sendData(float[] senVal/*, long time*/){
-
-        PutDataMapRequest dataMap = PutDataMapRequest.create(datapath);
-
-        dataMap.getDataMap().putFloatArray("SensorValues", senVal);
-        //dataMap.getDataMap().putLong("ValueTimestamp", time);
-        PutDataRequest request = dataMap.asPutDataRequest();
-        request.setUrgent();
-
-        Task<DataItem> dataItemTask = Wearable.getDataClient(this).putDataItem(request);
-
-        dataItemTask
-                .addOnSuccessListener(new OnSuccessListener<DataItem>() {
-                    @Override
-                    public void onSuccess(DataItem dataItem) {
-                        //if(i == 0){
-                            status = "Success";
-                            logthis();
-                       //     i++;
-                       // }
-                       // else if(i > 10){
-                       //     i = 1;
-                       // }
-                    }
-                })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(Exception e) {
-                        //if(i > 0) {
-                            status = "Failure";
-                            logthis();
-                       //     i = 0;
-                       // }
-                    }
-                })
-        ;
     }
 }
