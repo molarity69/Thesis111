@@ -3,7 +3,6 @@ package georgiou.thesis;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -45,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 
 import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
@@ -56,8 +56,6 @@ import libsvm.svm;
 import libsvm.svm_model;
 import libsvm.svm_node;
 import libsvm.svm_parameter;
-
-//import com.myproject.gesturerec3d;
 
 public class MainActivity extends AppCompatActivity implements DataClient.OnDataChangedListener, View.OnClickListener, PopupMenu.OnMenuItemClickListener {
 
@@ -86,19 +84,22 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     public BluetoothAdapter mBluetoothAdapter; //bluetooth initializer
     public String datapath = "/data_path"; //path for bluetooth communication
 
-    private float[][] dataSet = new float[120][90]; //array that holds the imported data set from CSV file
-    private float[][] globalDataSet;
-    private boolean changed = false;
-    private int newInput = 0;
-    private int newInputCheck = 0;
-    private Complex[][] fftDataset = new Complex[120][64];  //array that holds the imported data set in Complex type
-    int[][] txtVals;// = new int[120][constant];   //array that holds dataset values after being transformed with sax
-    int hhCount = 0, huCount = 0, hudCount = 0, hh2Count = 0, hu2Count = 0;
-    double[][] fftFloatDataset = new double[120][65];   //array that holds dataset values after being transformed with FFT, last cell is the gesture class
+    private float[][] dataSet;  //array that holds the imported data set from CSV file
+    private float[][] globalDataSet;    //array that holds the data from the CSV that gets updated
+    private boolean changed = false;    //checks which is the active data set for recognition
+    private int newInput = 0;   //increments if there is a new gesture added in the set
+    private int newInputCheck = 0;  //checks if a new gesture is added since the last initialization
+    private Complex[][] fftDataset;  //array that holds the imported data set in Complex type
+    int[][] txtVals;    //array that holds dataset values after being transformed with sax
+    int hhCount = 0, huCount = 0, hudCount = 0, hh2Count = 0, hu2Count = 0; //variables that help with the sorting and the classification of the constantly changing data set
+    int hhCountPersonal = 0, huCountPersonal = 0, hudCountPersonal = 0, hh2CountPersonal = 0, hu2CountPersonal = 0;
+    double[][] fftFloatDataset;   //array that holds dataset values after being transformed with FFT, last cell is the gesture class
+    private int fftSetValuesCount = 64; //constant of the number of values used in fft
     public static svm_node[] nodes1;    //array svm_node type that holds the incoming gesture data as prediction input for SVM
+    svm_model model1;   //an svm_model object that holds the SVM parameters for fft recognition
 
-    private Complex[] row = new Complex[64];    //array that helps with copying each imported data row to the data set after transformation
-    private Complex[] bufferrow = new Complex[64];  //same as above but for the buffer array that holds data for recognition
+    private Complex[] row = new Complex[fftSetValuesCount];    //array that helps with copying each imported data row to the data set after transformation
+    private Complex[] bufferrow = new Complex[fftSetValuesCount];  //same as above but for the buffer array that holds data for recognition
 
     public static String baseDir = Environment.getExternalStoragePublicDirectory("/DCIM").getAbsolutePath();    //path to phone storage folder
     public svm_model model = new svm_model();   //svm_model that holds all information about the SVM parameters
@@ -183,8 +184,8 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     String filePathRhoRead = baseDir + File.separator + fileNameRhoRead;
     String fileNameSVRead = "classifier_SV.txt";
     String filePathSVRead = baseDir + File.separator + fileNameSVRead;
-    //String modelName = "svm.model";
-    //String filePathModelName = baseDir + File.separator +modelName;
+    String modelName = "newClass.txt";
+    String filePathModelName = baseDir + File.separator +modelName;
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -246,7 +247,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             //MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
 
             initializeFromSAXtxt(false); //method that loads dataset in SAX form into an array for comparing with input data
-            importSVMmodelDataAndBuild(filePathCoefsRead, filePathSVRead, filePathRhoRead); //method that builds the SVM model
+            //importSVMmodelDataAndBuild(filePathCoefsRead, filePathSVRead, filePathRhoRead); //method that builds the SVM model
+            model1 = svm.svm_load_model(filePathModelName);
+            System.out.println("Model Gamma ---> \t"+ model1.param.gamma);
+            System.out.println("Model Kernel ---> \t"+model1.param.kernel_type);
+            System.out.println("Model SVM Type ---> \t"+model1.param.svm_type);
+            System.out.println("Model Number of Classes ---> \t"+svm.svm_get_nr_class(model1));
+            System.out.println("Model Classes ---> \t"+Arrays.toString(model1.label));
         }catch (IOException e){
             e.printStackTrace();    //exception handling
         }
@@ -328,10 +335,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         switch (v.getId()) {
             case R.id.buttonZeroValue:  //button RECORD A GESTURE
                 if (!start) {
-                    if(chosenAlgorithm.equals("train")) {
-                        //calling  the export method with 3 float cells having the value of 30 to distinguish where every new gesture starts in the csv(used during development)
-                        //exportDataToCSV(new float[]{30.00f, 30.00f, 30.00f}, filePath, f, false);
-                    }
                     start = true;   //start variable means start recording the incoming data in onDataChanged method
                     recordedCount++;    //increment recording by one when button is pressed (used for knowing when to stop recording)
                     enableButtons(false); //disable all buttons while recording
@@ -364,7 +367,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);   //disable buttons when recognising
                 if(!gestureGeneralBuffer.isEmpty()) {   //if there is a recorded gesture
-                    findGestureClass(findGestureWithFFTDataSVM(model,bufferFFT()),0); //run the fft recognition algorithm
+                    findGestureClass(findGestureWithFFTDataSVM(model1,bufferFFT()),120); //run the fft recognition algorithm
                     gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }
                 else{
@@ -554,13 +557,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     /** findGestureClass method is called with the index of the data set that the incoming gesture matches with */
     public void findGestureClass(int index, int length){
 
-        if(length==120){
+        if(length==dataSet.length){
             //when there's a match update the UI accordingly and play the notification sound
-            if(index < 24) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
-            else if (index < 48) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
-            else if (index < 72) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
-            else if(index < 96) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
-            else if (index < 120) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
+            if(index < hhCountPersonal) { gestureRecognized.setText(R.string.currGestHH); playDaSound(R.raw.hh); }
+            else if (index < hhCountPersonal+huCountPersonal) { gestureRecognized.setText(R.string.currGestHU); playDaSound(R.raw.hu); }
+            else if (index < hhCountPersonal+huCountPersonal+hudCountPersonal) { gestureRecognized.setText(R.string.currGestHUD); playDaSound(R.raw.hud); }
+            else if(index < hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal) { gestureRecognized.setText(R.string.currGestHH2); playDaSound(R.raw.hh2); }
+            else if (index < hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal+hu2CountPersonal) { gestureRecognized.setText(R.string.currGestHU2); playDaSound(R.raw.hu2); }
             else System.out.println("LET'S HOPE I WONT BE PRINTED");
         }
         else{
@@ -771,7 +774,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         int count = 0;  //counter for the data points
 
-        float[] absFFTbufferForFloat = new float[64];   //array that stores the absolute values of the complex numbers
+        float[] absFFTbufferForFloat = new float[fftSetValuesCount];   //array that stores the absolute values of the complex numbers
         nodes1 = new svm_node[absFFTbufferForFloat.length]; //an svm_node object to store the values and index of every data point
         int r = 0;
         for(int j = 0; j<90; j++){  //for all 90 data points of the incoming user gesture
@@ -790,7 +793,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         fft(bufferrow); //call the FFT function to transform the incoming data
         svm_node node;  // declare an svm_node object
         for(int a = 0; a < bufferrow.length; a++){  //for all values in the array
-            absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/64.0);    //add the absolute value of every complex number in the new array
+            absFFTbufferForFloat[a] = (float) (bufferrow[a].abs()/fftSetValuesCount);    //add the absolute value of every complex number in the new array
             node = new svm_node();  //make a new svm_node
             node.index = a+1;   //index always starts form 1
             node.value = absFFTbufferForFloat[a];   //add the value
@@ -806,10 +809,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         // its the exact same function as above except it doesn't return svm_node array and it exports the
         // transformation data in csv files
+        fftDataset = new Complex[dataSet.length][fftSetValuesCount];
         int count = 0;
-        for(int i = 0; i < 120; i++){
+        for(int i = 0; i < dataSet.length; i++){
             int r = 0;
-            for(int j = 0; j<90; j++){
+            for(int j = 0; j<dataSet[0].length; j++){
                 if(( count == 2 || count == 5) && j != 14 && j != 44 && j != 74 && j != 83 ){
                     count=0;
                     continue;
@@ -819,7 +823,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 count++;
             }
             fft(row);
-            for(int k = 0; k<64; k++){
+            for(int k = 0; k<fftSetValuesCount; k++){
                 fftDataset[i][k] = row[k];
             }
         }
@@ -842,9 +846,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         System.out.println("The result ---> "+result);
         for(double sc : scores) {
-            System.out.println("The SCORES --> "+sc);
             sum += sc;  //sum up all the decision values
         }
+        System.out.println("The SCORES --> "+Arrays.toString(scores));
         sum /= scores.length;   //find the average
         System.out.println("The avg of scores ---> "+sum);
 
@@ -911,7 +915,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         model.sv_coef = new double[4][108]; //array that stores the coefs
         model.rho = new double[10]; //array that stores the rhos
-        model.SV = new svm_node[108][64];   //array that stores the SVs
+        model.SV = new svm_node[108][fftSetValuesCount];   //array that stores the SVs
         String thisLine, separator =",";    //the separators used in the files are commas
 
         //the next three if-statements all initialize a new reader and add every new value they find in the corresponding array
@@ -1043,23 +1047,74 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         try{
             FileReader read = new FileReader(filepath); //initialize file reader
             reader = new CSVReader(read);
-            String[] lines; //lines in file
             if(!global){
+                List<String[]> lines; //lines in file
                 changed = false;
-                int i = 0,j = 0;
-                String[] linesOut = reader.readNext();  //the first line is the header for X, Y and Z
-                while((lines = reader.readNext()) != null){
-                    for(String current : lines){
-                        if(j==90)
-                            break;
-                        dataSet[i][j] = Float.parseFloat(current);  //parse every value from the file into the array
-                        j++;
+                lines = reader.readAll();
+                int linesInFile = lines.size()-1;
+                dataSet = new float[linesInFile][(lines.get(0).length)-1];
+                int x = 0;
+                hhCountPersonal = 0;
+                huCountPersonal = 0;
+                hudCountPersonal = 0;
+                hh2CountPersonal = 0;
+                hu2CountPersonal = 0;
+                for(String[] Lines : lines){
+                    if(x > 0){
+                        for(int z = 0; z < dataSet[0].length; z++) {
+                            dataSet[x-1][z] = Float.parseFloat(Lines[z]);
+                            if( z == dataSet[0].length-1){
+                                switch (Lines[z+1]){
+                                    case "hh":
+                                        hhCountPersonal++;
+                                        System.out.println("hhCountPersonal ---> \t"+hhCountPersonal);
+                                        break;
+                                    case "hu":
+                                        huCountPersonal++;
+                                        System.out.println("huCountPersonal ---> \t"+huCountPersonal);
+                                        break;
+                                    case "hud":
+                                        hudCountPersonal++;
+                                        System.out.println("hudCountPersonal ---> \t"+hudCountPersonal);
+                                        break;
+                                    case "hh2":
+                                        hh2CountPersonal++;
+                                        System.out.println("hh2CountPersonal ---> \t"+hh2CountPersonal);
+                                        break;
+                                    case  "hu2":
+                                        hu2CountPersonal++;
+                                        System.out.println("hu2CountPersonal ---> \t"+hu2CountPersonal);
+                                        break;
+                                    default:
+                                        System.out.println("Something went wrong!");
+                                        break;
+                                }
+                            }
+                        }
+
                     }
-                    j = 0;
-                    i++;
+                    x++;
                 }
+//                reader.close();
+//                reader = new CSVReader(read);
+//                int i = 0,j = 0;
+//                String[] linesOut = reader.readNext();  //the first line is the header for X, Y and Z
+//                System.out.println("----------------------------------------------------------------------------------------------------------------"+dataSet[i][j]);
+//                while((lines = reader.readNext()) != null){
+//                    System.out.println("*****************************************************************************************************************");
+//                    for(String current : lines){
+//                        if(j==90)
+//                            break;
+//                        dataSet[i][j] = Float.parseFloat(current);  //parse every value from the file into the array
+//                        System.out.println(dataSet[i][j]);
+//                        j++;
+//                    }
+//                    j = 0;
+//                    i++;
+//                }
             }
             else{
+                String[] lines;
                 changed = true;
                 hhCount = 0;
                 huCount = 0;
@@ -1205,21 +1260,23 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }
         else {  //else if the method is called with a different number of array cells
             String[] val = new String[65];  //array that stores 64 values of the transformed data and the 65th is the class
+            fftFloatDataset = new double[fftDataset.length][65];
+            int TRAINING_ONCE = 0;
             for(int j = 0; j< fftDataset.length; j++){
                 for(int k = 0; k<fftDataset[0].length; k++){
                     //if in training mode and array length is 1 store the string values of the complex numbers
-                    if(accData.length == 1 && chosenAlgorithm.equals("train")) val[k] = fftDataset[j][k].toStringZ();
+                    if(accData.length == 1 && TRAINING_ONCE == 1) val[k] = fftDataset[j][k].toStringZ();
                     //else if in training mode and array length is 0 store the string values of the absolute values
-                    else if(accData.length == 0 && chosenAlgorithm.equals("train")) val[k] = Float.toString((float)(fftDataset[j][k].abs()/64.0));
+                    else if(accData.length == 0 && TRAINING_ONCE == 1) val[k] = Float.toString((float)(fftDataset[j][k].abs()/fftSetValuesCount));
                     //else just store the absolute values of the transformed numbers into an array for further use
-                    else fftFloatDataset[j][k] = (fftDataset[j][k].abs()/64.0);
+                    else fftFloatDataset[j][k] = (fftDataset[j][k].abs()/fftSetValuesCount);
                 }
                 //and in this if-statement, assign to the last cell of each row which class this data row belongs to
-                if(j<24){fftFloatDataset[j][64] = 1; val[64] = "hh";}       //first 24 records belong to the hh class
-                else if(j<48){fftFloatDataset[j][64] = 2; val[64] = "hu";}  //next 24 records belong to the hu class
-                else if(j<72){fftFloatDataset[j][64] = 3; val[64] = "hud";} //next 24 records belong to the hud class
-                else if(j<96){fftFloatDataset[j][64] = 4; val[64] = "hh2";} //next 24 records belong to the hh2 class
-                else if(j<120){fftFloatDataset[j][64] = 5; val[64] = "hu2";}//last 24 records belong to the hu2 class
+                if(j<hhCountPersonal){fftFloatDataset[j][64] = 1; if(TRAINING_ONCE == 1)val[64] = "hh";}       //first 24 records belong to the hh class
+                else if(j<hhCountPersonal+huCountPersonal){fftFloatDataset[j][64] = 2; if(TRAINING_ONCE == 1)val[64] = "hu";}  //next 24 records belong to the hu class
+                else if(j<hhCountPersonal+huCountPersonal+hudCountPersonal){fftFloatDataset[j][64] = 3; if(TRAINING_ONCE == 1)val[64] = "hud";} //next 24 records belong to the hud class
+                else if(j<hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal){fftFloatDataset[j][64] = 4; if(TRAINING_ONCE == 1)val[64] = "hh2";} //next 24 records belong to the hh2 class
+                else if(j<hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal+hu2CountPersonal){fftFloatDataset[j][64] = 5; if(TRAINING_ONCE == 1)val[64] = "hu2";}//last 24 records belong to the hu2 class
 
                 writer.writeNext(val,false);    //write the values in the next line of the file
             }

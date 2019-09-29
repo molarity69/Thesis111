@@ -2585,7 +2585,7 @@ public class svm {
 					}
 					if(i == svm_type_table.length)
 					{
-						System.err.print("unknown svm type.\n");
+						System.out.println("unknown svm type.");
 						return false;
 					}
 				}
@@ -2602,7 +2602,7 @@ public class svm {
 					}
 					if(i == kernel_type_table.length)
 					{
-						System.err.print("unknown kernel function.\n");
+						System.out.println("unknown kernel function.");
 						return false;
 					}
 				}
@@ -2662,7 +2662,7 @@ public class svm {
 				}
 				else
 				{
-					System.err.print("unknown text in model file: ["+cmd+"]\n");
+					System.out.println("unknown text in model file: ["+cmd+"]");
 					return false;
 				}
 			}
