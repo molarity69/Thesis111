@@ -36,6 +36,7 @@ import java.io.BufferedWriter;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constant;
+import static ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries.constantSym;
 import static georgiou.thesis.FFT.fft;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestConvertTimeSeriesFiletoSequenceFileWithSAX;
 import ca.pfv.spmf.algorithms.timeseries.sax.MainTestSAX_SingleTimeSeries;
@@ -176,6 +178,13 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////
 
+    /////////////////////////////////////////////////////////////////////////////////////////////EXPORT TRANSFORMED SAX DATA SET TO TXT
+
+    String fileNameSAXReadGlobal = "saxOutputGlobal.txt";
+    String filePathSAXReadGlobal = baseDir + File.separator + fileNameSAXReadGlobal;
+
+    /////////////////////////////////////////////////////////////////////////////////////////////
+
     /////////////////////////////////////////////////////////////////////////////////////////////IMPORT SVM MODEL DATA FROM TXT
 
     String fileNameCoefsRead = "classifier_coefs.txt";
@@ -244,16 +253,20 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         //writeSAXtoTXT();
         try{
             //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
+
             //MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(null);
 
-            initializeFromSAXtxt(false); //method that loads dataset in SAX form into an array for comparing with input data
+            initializeFromSAXtxt(false, filePathSAXRead); //method that loads dataset in SAX form into an array for comparing with input data
             //importSVMmodelDataAndBuild(filePathCoefsRead, filePathSVRead, filePathRhoRead); //method that builds the SVM model
             model1 = svm.svm_load_model(filePathModelName);
-            System.out.println("Model Gamma ---> \t"+ model1.param.gamma);
+            model1.param.C = 1000;
+            model1.param.gamma = 0.02;
             System.out.println("Model Kernel ---> \t"+model1.param.kernel_type);
             System.out.println("Model SVM Type ---> \t"+model1.param.svm_type);
             System.out.println("Model Number of Classes ---> \t"+svm.svm_get_nr_class(model1));
             System.out.println("Model Classes ---> \t"+Arrays.toString(model1.label));
+            System.out.println("Model C ---> \t"+model1.param.C);
+            System.out.println("Model Gamma ---> \t"+model1.param.gamma);
         }catch (IOException e){
             e.printStackTrace();    //exception handling
         }
@@ -288,7 +301,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         String arg[] = new String[]{""};
                         //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
                         MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
-                        initializeFromSAXtxt(false); //method that loads dataset in SAX form into an array for comparing with input data
+                        initializeFromSAXtxt(false, filePathSAXRead); //method that loads dataset in SAX form into an array for comparing with input data
                     }catch (IOException e){e.printStackTrace();}
                 }
                 try{
@@ -311,7 +324,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                         String arg[] = new String[]{"global"};
                         //spmf library method that transforms raw data from txt file with SAX and exports them to another txt file (used during development)
                         MainTestConvertTimeSeriesFiletoSequenceFileWithSAX.main(arg);
-                        initializeFromSAXtxt(true); //method that loads dataset in SAX form into an array for comparing with input data
+                        initializeFromSAXtxt(true, filePathSAXReadGlobal); //method that loads dataset in SAX form into an array for comparing with input data
                     }catch (IOException e){e.printStackTrace();}
                 }
 
@@ -367,7 +380,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 chosenAlgorithm = "fft";
                 enableButtons(false);   //disable buttons when recognising
                 if(!gestureGeneralBuffer.isEmpty()) {   //if there is a recorded gesture
-                    findGestureClass(findGestureWithFFTDataSVM(model1,bufferFFT()),120); //run the fft recognition algorithm
+                    findGestureClass(findGestureWithFFTDataSVM(model1,bufferFFT()),dataSet.length); //run the fft recognition algorithm
                     gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }
                 else{
@@ -653,9 +666,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
     }
 
     /** initializeFromSAXtxt method reads the transformed data form the data set that is stored in a txt file inside the mobile storage */
-    public void initializeFromSAXtxt(boolean global) throws IOException {
+    public void initializeFromSAXtxt(boolean global, String fp) throws IOException {
 
-        BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(filePathSAXRead))));    //initialize the reader
+        BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(fp))));    //initialize the reader
         String thisLine, separator =",";    //each value is separated by comma in every line
         int i , j = 0;
         if(global)
@@ -844,6 +857,12 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         System.out.println("First and second elements of the INCOMING --->\t"+incoming[0].value+", "+incoming[1].value);
         double result = svm.svm_predict_values(model, incoming, scores);    //call the prediction method (the result value is used only in two class classification)
 
+        double avg = 0;
+        for(svm_node current : incoming){
+            avg += current.value;
+        }
+        avg /= incoming.length;
+        System.out.println("The avg value of the incoming gesture ---> \t"+avg);
         System.out.println("The result ---> "+result);
         for(double sc : scores) {
             sum += sc;  //sum up all the decision values
@@ -854,21 +873,36 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
         // this if-statement returns the index number of each gesture so that the findGestureClass method can update the UI accordingly
         //it can be later implemented in the findGestureClass if everything is working flawlessly
-        if(sum > -0.18 && sum < -0.14){ // gesture hh
-            return 20;
+        switch ((int)result){
+            case 1:
+                return 2;
+            case 2:
+                if(avg < 0.4)
+                    return 2;
+                else
+                return 152;
+            case 3:
+                return 52;
+            case 4:
+                return 202;
+            case 5:
+                return 102;
         }
-        else if(sum > -0.26 && sum < -0.22){    //gesture hu
-            return 40;
-        }
-        else if(sum > -0.37 && sum < -0.33){    //gesture hud
-            return 60;
-        }
-        else if(sum > -0.22 && sum < -0.18){    //gesture hh2
-            return 80;
-        }
-        else if(sum > -0.33 && sum < -0.26){    //gesture hu2
-            return 100;
-        }
+//        if(sum > -0.18 && sum < -0.14){ // gesture hh
+//            return 20;
+//        }
+//        else if(sum > -0.26 && sum < -0.22){    //gesture hu
+//            return 40;
+//        }
+//        else if(sum > -0.37 && sum < -0.33){    //gesture hud
+//            return 60;
+//        }
+//        else if(sum > -0.22 && sum < -0.18){    //gesture hh2
+//            return 80;
+//        }
+//        else if(sum > -0.33 && sum < -0.26){    //gesture hu2
+//            return 100;
+//        }
         //degree = 2 gamma = 0.02
 
 //        if(scores[0] > -1.1 && scores[0] < -1.08){
@@ -1067,23 +1101,18 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                                 switch (Lines[z+1]){
                                     case "hh":
                                         hhCountPersonal++;
-                                        System.out.println("hhCountPersonal ---> \t"+hhCountPersonal);
                                         break;
                                     case "hu":
                                         huCountPersonal++;
-                                        System.out.println("huCountPersonal ---> \t"+huCountPersonal);
                                         break;
                                     case "hud":
                                         hudCountPersonal++;
-                                        System.out.println("hudCountPersonal ---> \t"+hudCountPersonal);
                                         break;
                                     case "hh2":
                                         hh2CountPersonal++;
-                                        System.out.println("hh2CountPersonal ---> \t"+hh2CountPersonal);
                                         break;
                                     case  "hu2":
                                         hu2CountPersonal++;
-                                        System.out.println("hu2CountPersonal ---> \t"+hu2CountPersonal);
                                         break;
                                     default:
                                         System.out.println("Something went wrong!");

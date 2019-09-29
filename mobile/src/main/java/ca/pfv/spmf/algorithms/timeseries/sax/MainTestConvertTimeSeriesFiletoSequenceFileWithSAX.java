@@ -33,7 +33,7 @@ public class MainTestConvertTimeSeriesFiletoSequenceFileWithSAX {
 			reader.printStats();
 
 			// the output file
-			String output = MainActivity.baseDir + File.separator + "saxOutput.txt";//".//output.txt";
+			String output = MainActivity.baseDir + File.separator + "saxOutputGlobal.txt";//".//output.txt";
 
 			// Parameters of the algorithm
 			int numberOfSegments = constant;
