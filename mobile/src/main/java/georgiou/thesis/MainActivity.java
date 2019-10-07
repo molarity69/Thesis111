@@ -187,12 +187,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
 
     /////////////////////////////////////////////////////////////////////////////////////////////IMPORT SVM MODEL DATA FROM TXT
 
-    String fileNameCoefsRead = "classifier_coefs.txt";
-    String filePathCoefsRead = baseDir + File.separator + fileNameCoefsRead;
-    String fileNameRhoRead = "classifier_rho.txt";
-    String filePathRhoRead = baseDir + File.separator + fileNameRhoRead;
-    String fileNameSVRead = "classifier_SV.txt";
-    String filePathSVRead = baseDir + File.separator + fileNameSVRead;
     String modelName = "newClass.txt";
     String filePathModelName = baseDir + File.separator +modelName;
 
@@ -231,6 +225,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         newGesture.setOnClickListener(this);    //listener for recording button
         newGesture.setEnabled(false);           //can't be pressed if watch hasn't connected yet
         d3Button.setOnClickListener(this);      //choosing recognition algorithm buttons
+        d3Button.setVisibility(View.INVISIBLE);
         fftButton.setOnClickListener(this);
         saxButton.setOnClickListener(this);
         trainButton.setOnClickListener(this);
@@ -308,7 +303,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     MainTestSAX_SingleTimeSeries.main(bufferSAX()); //spmf library method that transforms the incoming data with SAX
                     int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();  //custom method placed in spmf library to return the transformed timeseries data
                     findGestureWithSAXDataEuclidean(liveSAX);   //run the SAX recognition algorithm
-                    gestureGeneralBuffer.clear();   //make space for the next incoming gesture
+                    //gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }catch (IOException e){
                     e.printStackTrace();    //exception handling
                 }
@@ -332,7 +327,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     MainTestSAX_SingleTimeSeries.main(bufferSAX()); //spmf library method that transforms the incoming data with SAX
                     int[] liveSAX = MainTestSAX_SingleTimeSeries.getSym();  //custom method placed in spmf library to return the transformed timeseries data
                     findGestureWithSAXDataEuclidean(liveSAX);   //run the SAX recognition algorithm
-                    gestureGeneralBuffer.clear();   //make space for the next incoming gesture
+                    //gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }catch (IOException e){
                     e.printStackTrace();    //exception handling
                 }
@@ -366,7 +361,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     popupMenu.setOnMenuItemClickListener(this);
                     popupMenu.inflate(R.menu.popup_menu);
                     popupMenu.show();
-                    gestureGeneralBuffer.clear();   //make space for the next incoming gesture
+                    //gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }
                 else{
                     //this pops up when the button is pressed while there aren't any data recorded
@@ -381,7 +376,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 enableButtons(false);   //disable buttons when recognising
                 if(!gestureGeneralBuffer.isEmpty()) {   //if there is a recorded gesture
                     findGestureClass(findGestureWithFFTDataSVM(model1,bufferFFT()),dataSet.length); //run the fft recognition algorithm
-                    gestureGeneralBuffer.clear();   //make space for the next incoming gesture
+                    //gestureGeneralBuffer.clear();   //make space for the next incoming gesture
                 }
                 else{
                     //this pops up when the button is pressed while there aren't any data recorded
@@ -399,11 +394,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     popupMenu.setOnMenuItemClickListener(this);
                     popupMenu.inflate(R.menu.popup_menu_sax);
                     popupMenu.show();
-//                    try {
-//
-//                    } catch (IOException e) {
-//                        e.printStackTrace();    //exception handling
-//                    }
                 }
                 else{
                     //this pops up when the button is pressed while there aren't any data recorded
@@ -692,7 +682,11 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         myInput.close();    //close the reader
     }
 
-    /** writeSAXtoTXT method was used during development for exporting raw data to txt for transforming them into a new data set with SAX */
+    /**
+     * writeSAXtoTXT method was used during development for exporting raw data to txt for transforming them into a new data set with SAX
+     * @param dataSet is the set you wish the function to initialize with
+     * @param f the name of the file to write to
+     * */
     public void writeSAXtoTXT(float[][] dataSet, File f){
 
         try {
@@ -709,73 +703,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
         }catch (Exception e){
             e.printStackTrace();    //exception handling
         }
-
-//        try {
-//            BufferedWriter TXTwriter;
-//            if(f.exists()&&!f.isDirectory()) {    //if the file already exists
-//                AlertDialog.Builder builder = new AlertDialog.Builder(this);
-//                builder.setTitle("Attention!");
-//                builder.setMessage("Make a new Training Set or append to the existing one?");
-//                builder.setPositiveButton("Append", (dialogInterface, i) -> {
-//                    try{
-//                        BufferedWriter TXTwriter1;
-//                        FileWriter mFileWriter = new FileWriter(fp, true);  //append to it
-//                        TXTwriter1 = new BufferedWriter(mFileWriter);    //initialize the writer
-//                        for(float[] valsRow : dataSet){ //for all the dataset array
-//                            for(float valsCol : valsRow) {
-//                                TXTwriter1.append(Float.toString(valsCol));  //append every value to the text file
-//                                TXTwriter1.append(",");  //separate it with coma
-//                            }
-//                            TXTwriter1.newLine();    //change line
-//                        }
-//                        TXTwriter1.flush();  //flush the writer
-//                        TXTwriter1.close();  //close the writer
-//                    }catch (IOException e){
-//                        e.printStackTrace();
-//                    }
-//                    Toast.makeText(MainActivity.this, "Training Set appended", Toast.LENGTH_LONG).show();
-//                });
-//
-//                builder.setNegativeButton("Make New", (dialogInterface, i) -> {
-//                    try{
-//                        BufferedWriter TXTwriter12;
-//                        TXTwriter12 = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
-//                        for(float[] valsRow : dataSet){ //for all the dataset array
-//                            for(float valsCol : valsRow) {
-//                                TXTwriter12.append(Float.toString(valsCol));  //append every value to the text file
-//                                TXTwriter12.append(",");  //separate it with coma
-//                            }
-//                            TXTwriter12.newLine();    //change line
-//                        }
-//                        TXTwriter12.flush();  //flush the writer
-//                        TXTwriter12.close();  //close the writer
-//                    }catch (IOException e){
-//                        e.printStackTrace();
-//                    }
-//                    Toast.makeText(MainActivity.this, "Training Set saved in an new file", Toast.LENGTH_LONG).show();
-//                });
-//
-//                builder.setNeutralButton("Cancel", (dialogInterface, i) -> Toast.makeText(MainActivity.this, "Operation Canceled", Toast.LENGTH_LONG).show());
-//
-//                builder.setCancelable(false);
-//                builder.show();
-//            }
-//            else {
-//                TXTwriter = new BufferedWriter(new FileWriter(fp)); //else initialize a writer to write a new file
-//                for(float[] valsRow : dataSet){ //for all the dataset array
-//                    for(float valsCol : valsRow) {
-//                        TXTwriter.append(Float.toString(valsCol));  //append every value to the text file
-//                        TXTwriter.append(",");  //separate it with coma
-//                    }
-//                    TXTwriter.newLine();    //change line
-//                }
-//                TXTwriter.flush();  //flush the writer
-//                TXTwriter.close();  //close the writer
-//            }
-//
-//        }catch (Exception e){
-//            e.printStackTrace();    //exception handling
-//        }
     }
 
     //-------------------------------------------------------------------------------------------------//
@@ -888,182 +815,9 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
             case 5:
                 return 102;
         }
-//        if(sum > -0.18 && sum < -0.14){ // gesture hh
-//            return 20;
-//        }
-//        else if(sum > -0.26 && sum < -0.22){    //gesture hu
-//            return 40;
-//        }
-//        else if(sum > -0.37 && sum < -0.33){    //gesture hud
-//            return 60;
-//        }
-//        else if(sum > -0.22 && sum < -0.18){    //gesture hh2
-//            return 80;
-//        }
-//        else if(sum > -0.33 && sum < -0.26){    //gesture hu2
-//            return 100;
-//        }
-        //degree = 2 gamma = 0.02
-
-//        if(scores[0] > -1.1 && scores[0] < -1.08){
-//            return 20;
-//        }
-//        else if(scores[0] > -1.07 && scores[0] < -1.03){
-//            return 40;
-//        }
-//        else if(scores[0] > -0.8 && scores[0] < -0.5){
-//            return 60;
-//        }
-//        else if(scores[0] > -1.09 && scores[0] < -1.079){
-//            return 80;
-//        }
-//        else if(scores[0] > -1.0 && scores[0] < -0.8){
-//            return 100;
-//        }
-//        if(result == 1.0){
-//            return 20;
-//        }
-//        else if(result == 2.0){
-//            return 40;
-//        }
-//        else if(result == 3.0){
-//            return 60;
-//        }
-//        else if(result == 4.0){
-//            return 80;
-//        }
-//        else if(result == 5.0){
-//            return 100;
-//        }
-
             return 200; //if all fails return an irrelevant number for classification
     }
 
-    /** importSVMmodelDataAndBuild method is building a new svm_model with custom parameters given from the developer
-     * to overcome the fact that svm_train was not working
-     * @param path1 the file path to the file that contains the coefs array
-     * @param path2 the file path to the file that contains the SV array
-     * @param path3 the file path to the file that contains the rho array*/
-
-    public svm_model importSVMmodelDataAndBuild(String path1, String path2, String path3) throws IOException{
-
-        model.sv_coef = new double[4][108]; //array that stores the coefs
-        model.rho = new double[10]; //array that stores the rhos
-        model.SV = new svm_node[108][fftSetValuesCount];   //array that stores the SVs
-        String thisLine, separator =",";    //the separators used in the files are commas
-
-        //the next three if-statements all initialize a new reader and add every new value they find in the corresponding array
-        if(path1.contains("coefs")){
-            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path1))));
-            int i , j = 0;
-            while ((thisLine = myInput.readLine()) != null) {
-                i=0;
-                for(String currLine : thisLine.split(separator)){
-                    model.sv_coef[j][i] = Double.parseDouble(currLine);
-                    i++;
-                }
-                j++;
-            }
-            myInput.close();
-        }
-            if(path2.contains("SV")){
-            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path2))));
-            int i , j = 0;
-            while ((thisLine = myInput.readLine()) != null) {
-                i=0;
-                for(String currLine : thisLine.split(separator)){
-                    svm_node node1 = new svm_node();
-                    node1.index = i+1;
-                    node1.value = Double.parseDouble(currLine);
-                    model.SV[j][i] = node1;
-                    i++;
-                }
-                j++;
-            }
-            myInput.close();
-        }
-
-        if(path3.contains("rho")){
-            BufferedReader myInput = new BufferedReader(new InputStreamReader( new FileInputStream(new File(path3))));
-            int i;
-            while ((thisLine = myInput.readLine()) != null) {
-                i=0;
-                for(String currLine : thisLine.split(separator)){
-                    model.rho[i] = Double.parseDouble(currLine);
-                    i++;
-                }
-            }
-            myInput.close();
-        }
-        //INITIALIZING EVERY MODEL FIELD AND PARAMETER
-        ///////////////////////////////////////////////////////////
-        model.label = new int[5];
-        model.nSV = new int[5];
-        model.nr_class = 5;
-        model.l = 108;
-        model.probA = new double[0];
-        model.probB = new double[0];
-        model.label[0] = 1;
-        model.label[1] = 2;
-        model.label[2] = 3;
-        model.label[3] = 4;
-        model.label[4] = 5;
-        model.nSV[0] = 16;
-        model.nSV[1] = 24;
-        model.nSV[2] = 23;
-        model.nSV[3] = 23;
-        model.nSV[4] = 22;
-
-        model.param = new svm_parameter();
-        model.param.svm_type    = svm_parameter.C_SVC;
-        model.param.kernel_type = svm_parameter.RBF;
-        model.param.degree = 3;
-        //model.param.svm_type    = svm_parameter.NU_SVC;
-        //model.param.kernel_type = svm_parameter.POLY;
-        //model.param.degree = 2;
-        model.param.gamma       = 0.015625;//0.02;//0.015513;
-        model.param.nu          = 0.5;
-        model.param.eps = 0.1;
-        model.param.cache_size  = 100;
-        ///////////////////////////////////////////////////////////
-
-        return model;
-    }
-
-    //NOT SURE ABBOUT THAT YET I MAY GET IT TO WORK
-//    public svm_model buildModel(double[][] input){
-//
-//        svm_parameter param = new svm_parameter();
-//        param.svm_type    = svm_parameter.C_SVC;
-//        param.kernel_type = svm_parameter.RBF;
-//        param.degree = 3;
-//        param.gamma       = 0.015625;
-//        param.nu          = 0.5;
-//        param.cache_size  = 100;
-//
-//        svm_problem problem = new svm_problem();
-//        problem.y = new double[input.length];
-//        problem.x = new svm_node[120][64];
-//
-//        nodes = new svm_node[input.length][input[0].length-1];
-//
-//        for(int i = 0; i < 120; i++){
-//            problem.x[i] = new svm_node[64];
-//            for(int j =0 ; j < 64; j++){
-//                svm_node node = new svm_node();
-//                node.index = j+1;
-//                node.value = input[i][j];
-//                nodes[i][j] = node;
-//                //problem.x[i][j] = node;
-//            }
-//            problem.y[i] = input[i][64];
-//        }
-//
-//        problem.x = nodes;
-//        problem.l = input.length;
-//
-//        return svm.svm_train(problem, param);
-//    }
 
     //-------------------------------------------------------------------------------------------------//
 
@@ -1124,23 +878,6 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                     }
                     x++;
                 }
-//                reader.close();
-//                reader = new CSVReader(read);
-//                int i = 0,j = 0;
-//                String[] linesOut = reader.readNext();  //the first line is the header for X, Y and Z
-//                System.out.println("----------------------------------------------------------------------------------------------------------------"+dataSet[i][j]);
-//                while((lines = reader.readNext()) != null){
-//                    System.out.println("*****************************************************************************************************************");
-//                    for(String current : lines){
-//                        if(j==90)
-//                            break;
-//                        dataSet[i][j] = Float.parseFloat(current);  //parse every value from the file into the array
-//                        System.out.println(dataSet[i][j]);
-//                        j++;
-//                    }
-//                    j = 0;
-//                    i++;
-//                }
             }
             else{
                 String[] lines;
@@ -1150,92 +887,49 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 hudCount = 0;
                 hh2Count = 0;
                 hu2Count = 0;
-                //List<List<Float>> input = new ArrayList<List<Float>>();
                 List<float[]> input = new ArrayList<float[]>();
                 int j = 0;
                 while((lines = reader.readNext()) != null){
                     float[] lineBuffer = new float[91];
-                    //List<Float> lineBuffer = new ArrayList<Float>(91);
                     for(String current : lines){
                         if(j==90){
                             switch (current) {
                                 case "hh":
-                                    //lineBuffer.add(1f);
                                     lineBuffer[j] = 1;
                                     input.add(0, lineBuffer);
-//                                    System.out.println("HH");
-//                                    System.out.println(Arrays.toString(input.get(0)));
                                     hhCount++;
-                                    //System.out.println("hhCount --->\t" + hhCount);
                                     break;
                                 case "hu":
-                                    //lineBuffer.add(2f);
                                     lineBuffer[j] = 2;
                                     input.add(hhCount,lineBuffer);
-//                                    System.out.println("lineBufferIndex --->\t" + hhCount);
-//                                    System.out.println("HU");
-//                                    System.out.println(Arrays.toString(input.get(hhCount)));
                                     huCount++;
-                                    //System.out.println("huCount --->\t" + huCount);
                                     break;
                                 case "hud":
-                                    //lineBuffer.add(3f);
                                     lineBuffer[j] = 3;
                                     input.add(hhCount+huCount,lineBuffer);
-//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount));
-//                                    System.out.println("HUD");
-//                                    System.out.println(Arrays.toString(input.get(hhCount+huCount)));
                                     hudCount++;
-                                    //System.out.println("hudCount --->\t" + hudCount);
                                     break;
                                 case "hh2":
-                                    //lineBuffer.add(4f);
                                     lineBuffer[j] = 4;
                                     input.add(hhCount+huCount+hudCount,lineBuffer);
-//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount+hudCount));
-//                                    System.out.println("HH2");
-//                                    System.out.println(Arrays.toString(lineBuffer));
                                     hh2Count++;
-                                    //System.out.println("hh2Count --->\t" + hh2Count);
                                     break;
                                 case "hu2":
-                                    //lineBuffer.add(5f);
                                     lineBuffer[j] = 5;
                                     input.add(hhCount+huCount+hudCount+hh2Count,lineBuffer);
-//                                    System.out.println("lineBufferIndex --->\t" + (hhCount+huCount+hudCount+hh2Count));
-//                                    System.out.println("HU2");
-//                                    System.out.println(Arrays.toString(lineBuffer));
                                     hu2Count++;
-                                    //System.out.println("hu2Count --->\t" + hu2Count);
                                     break;
                                 default:
                                     break;
                             }
                             break;
                         }
-                        //globalDataSet[i][j] = Float.parseFloat(current);  //parse every value from the file into the array
                         lineBuffer[j] = Float.parseFloat(current);//lineBuffer.add(Float.parseFloat(current));
                         j++;
                     }
                     j = 0;
-                    //System.out.println("Outer Array Size (Recordings)---> \t"+ input.size()+ "\nInner Array Size (Values)---> \t" + input.get(0).length);
                 }
-//                System.out.println("Cell 1");
-//                System.out.println(Arrays.toString(input.get(0).toArray()));
-//                System.out.println("Cell 2");
-//                System.out.println(Arrays.toString(input.get(1).toArray()));
-//                System.out.println("Cell 3");
-//                System.out.println(Arrays.toString(input.get(2).toArray()));
-//                System.out.println("Cell 4");
-//                System.out.println(Arrays.toString(input.get(3).toArray()));
-//                System.out.println("Cell 5");
-//                System.out.println(Arrays.toString(input.get(4).toArray()));
-//                System.out.println("Cell 6");
-//                System.out.println(Arrays.toString(input.get(5).toArray()));
-//                System.out.println("Cell 7");
-//                System.out.println(Arrays.toString(input.get(6).toArray()));
 
-                //globalDataSet = new float[input.size()][input.get(0).size()];
                 globalDataSet = new float[input.size()][input.get(0).length];
                 for(int i = 0; i < globalDataSet.length; i++){
                     for(int k = 0; k < globalDataSet[0].length; k++){
@@ -1307,7 +1001,7 @@ public class MainActivity extends AppCompatActivity implements DataClient.OnData
                 else if(j<hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal){fftFloatDataset[j][64] = 4; if(TRAINING_ONCE == 1)val[64] = "hh2";} //next 24 records belong to the hh2 class
                 else if(j<hhCountPersonal+huCountPersonal+hudCountPersonal+hh2CountPersonal+hu2CountPersonal){fftFloatDataset[j][64] = 5; if(TRAINING_ONCE == 1)val[64] = "hu2";}//last 24 records belong to the hu2 class
 
-                writer.writeNext(val,false);    //write the values in the next line of the file
+                if(TRAINING_ONCE == 1)writer.writeNext(val,false);    //write the values in the next line of the file
             }
         }
             writer.close(); //close the writer
